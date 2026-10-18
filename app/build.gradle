@@ -1,25 +1,16 @@
 plugins {
     id 'com.android.application'
-    id 'com.google.gms.google-services'
-    id 'com.google.firebase.crashlytics'
+}
+
+// Firebase configuration is supplied by the repository owner, not committed here.
+def hasGoogleServicesConfig = file('google-services.json').exists()
+if (hasGoogleServicesConfig) {
+    apply plugin: 'com.google.gms.google-services'
+    apply plugin: 'com.google.firebase.crashlytics'
 }
 
 android {
-    signingConfigs {
-        debug {
-            storeFile file("../../keys/new.jks")
-            storePassword "123123"
-            keyAlias "key0"
-            keyPassword "123123"
-        }
-        release {
-            storeFile file("../../keys/new.jks")
-            storePassword "123123"
-            keyAlias "key0"
-            keyPassword "123123"
-        }
-    }
-    compileSdk 34
+    compileSdk 35
     allprojects {repositories {maven { url 'https://maven.aliyun.com/repository/jcenter' }}}
     namespace 'com.samp.mobile'
 
@@ -63,23 +54,21 @@ android {
             minifyEnabled false
 
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+
         }
         release {
-            firebaseCrashlytics {
-                // Enable processing and uploading of native symbols to Firebase servers.
-                // By default, this is disabled to improve build speeds.
-                // This flag must be enabled to see properly-symbolicated native
-                // stack traces in the Crashlytics dashboard.
-                nativeSymbolUploadEnabled true
-                strippedNativeLibsDir 'build/intermediates/stripped_native_libs/release/out/lib'
-                unstrippedNativeLibsDir 'build/intermediates/merged_native_libs/release/out/lib'
+            if (hasGoogleServicesConfig) {
+                firebaseCrashlytics {
+                    nativeSymbolUploadEnabled true
+                    strippedNativeLibsDir 'build/intermediates/stripped_native_libs/release/out/lib'
+                    unstrippedNativeLibsDir 'build/intermediates/merged_native_libs/release/out/lib'
+                }
             }
             debuggable false
             jniDebuggable false
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+
         }
         all{
             multiDexEnabled true
@@ -101,6 +90,7 @@ android {
 }
 
 dependencies {
+    implementation project(':host')
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation 'androidx.appcompat:appcompat:1.1.0'
     implementation "com.google.android.material:material:1.3.0"

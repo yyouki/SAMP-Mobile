@@ -82,21 +82,21 @@
 
     <activity
         android:name=".launcher.MainActivity"
-        android:screenOrientation="portrait"
+        android:screenOrientation="landscape"
         android:theme="@style/Theme.AppCompat.NoActionBar"
         android:windowSoftInputMode="adjustNothing">
     </activity>
 
     <activity
         android:name=".launcher.SplashActivity"
-        android:screenOrientation="portrait"
+        android:screenOrientation="landscape"
         android:exported="true"
         android:theme="@style/Theme.AppCompat.NoActionBar">
     </activity>
 
     <activity
         android:name=".launcher.UpdateActivity"
-        android:screenOrientation="portrait"
+        android:screenOrientation="landscape"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
     </activity>
 

@@ -14,6 +14,7 @@ import com.samp.mobile.game.ui.LoadingScreen;
 import com.samp.mobile.game.ui.dialog.DialogManager;
 import com.samp.mobile.launcher.util.SharedPreferenceCore;
 import com.samp.mobile.launcher.util.SignatureChecker;
+import com.opencef.host.ActivityBrowserOverlay;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
@@ -28,6 +29,7 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
 
     private AttachEdit mAttachEdit;
     private LoadingScreen mLoadingScreen;
+    private volatile ActivityBrowserOverlay openCefOverlay;
 
     public native void sendDialogResponse(int i, int i2, int i3, byte[] str);
 
@@ -195,6 +197,19 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
             Log.e(TAG, e5.getMessage());
         }
 
+        // Local OpenCEF smoke test; this overlay is hidden until WEB is tapped.
+        try {
+            openCefOverlay = new ActivityBrowserOverlay(this, "file:///android_asset/opencef/alyn_test.html");
+            openCefOverlay.on("overlay_test_event", payload -> {
+                Log.i(TAG, "OpenCEF test event: " + payload);
+                ActivityBrowserOverlay overlay = openCefOverlay;
+                if (overlay != null) {
+                    overlay.emit("overlay_test_result", "{\"ok\":true,\"message\":\"Kotlin received the event\"}");
+                }
+            });
+        } catch (RuntimeException e) {
+            Log.e(TAG, "Unable to initialize OpenCEF overlay", e);
+        }
     }
 
     private native void initializeSAMP();
@@ -252,6 +267,11 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
     @Override
     public void onDestroy() {
         Log.i(TAG, "**** onDestroy");
+        ActivityBrowserOverlay overlay = openCefOverlay;
+        openCefOverlay = null;
+        if (overlay != null) {
+            overlay.dispose();
+        }
         super.onDestroy();
     }
 
