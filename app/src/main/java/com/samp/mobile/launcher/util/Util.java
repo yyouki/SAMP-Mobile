@@ -37,8 +37,8 @@ import java.util.Iterator;
 
 public class Util {
 
-    public static String responseFiles = "";
-    public static int responseFilesInt = 0;
+    public static volatile String responseFiles = "";
+    public static volatile int responseFilesInt = 0;
 
     public static String InputStreamToString(InputStream inputStream) {
         StringBuilder sb = new StringBuilder();
