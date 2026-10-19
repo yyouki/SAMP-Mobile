@@ -315,7 +315,7 @@
         android:layout_width="match_parent"
         android:layout_height="16dp"
         android:fontFamily="@font/montserrat_regular"
-        android:gravity="center_end"
+        android:gravity="end|center_vertical"
         android:text="SA-MP Mobile"
         android:textColor="#AEAEAE"
         android:textSize="9sp" />
