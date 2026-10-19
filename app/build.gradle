@@ -10,16 +10,16 @@ if (hasGoogleServicesConfig) {
 }
 
 android {
-    compileSdk 35
+    compileSdk 36
     allprojects {repositories {maven { url 'https://maven.aliyun.com/repository/jcenter' }}}
     namespace 'com.samp.mobile'
 
     defaultConfig {
         applicationId "com.samp.mobile"
         minSdk 26
-        targetSdk 34
-        versionCode 105
-        versionName "0.8.2.1"
+        targetSdk 36
+        versionCode 106
+        versionName "0.8.2.2"
 
         multiDexEnabled true
 

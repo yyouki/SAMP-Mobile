@@ -2,8 +2,6 @@ package com.samp.mobile.launcher.fragments;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.transition.Fade;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,22 +16,17 @@ import com.joom.paranoid.Obfuscate;
 import com.samp.mobile.R;
 import com.samp.mobile.launcher.MainActivity;
 import com.samp.mobile.launcher.adapters.FavouriteServerAdapter;
-import com.samp.mobile.launcher.adapters.ServerAdapter;
-import com.samp.mobile.launcher.util.ButtonAnimator;
 
-import java.util.Objects;
 @Obfuscate
 public class ServerPagesItemFragment extends Fragment {
 
     private int pagePosition;
 
-    public static ServerPagesItemFragment newInstance(int page)
-    {
+    public static ServerPagesItemFragment newInstance(int page) {
         ServerPagesItemFragment instance = new ServerPagesItemFragment();
         Bundle bundle = new Bundle();
         bundle.putInt("page", page);
         instance.setArguments(bundle);
-        Log.d("InfoJSON", "ServerPagesItemFragment " + page);
         return instance;
     }
 
@@ -44,72 +37,35 @@ public class ServerPagesItemFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if(getArguments() != null)
-        {
-            pagePosition = getArguments().getInt("page");
-            Log.d("InfoJSON", "ServerPagesItemFragment " + pagePosition);
+        if (getArguments() != null) {
+            pagePosition = getArguments().getInt("page", 0);
         }
-
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View view;
-        RecyclerView recyclerView;
-
-        ((MainActivity)getActivity()).hideKeyboard(getActivity());
-
-        view = inflater.inflate(R.layout.fragment_favorite, container, false);
-
-        if(pagePosition == 1) {
-            view = inflater.inflate(R.layout.fragment_internet, container, false);
-            ServerAdapter adapter = new ServerAdapter(view.getContext(), this.pagePosition);
-
-            Log.d("AXL", "pagepos == 1");
-
-            RecyclerView recyclerView2 = view.findViewById(R.id.server_recycler);
-            if (recyclerView2.getItemAnimator() != null) {
-                ((SimpleItemAnimator) Objects.requireNonNull(recyclerView2.getItemAnimator())).setSupportsChangeAnimations(false);
-                recyclerView2.setLayoutManager(new LinearLayoutManager(view.getContext()));
-                if (view.getContext() != null) {
-                    recyclerView2.setAdapter(adapter);
-                }
-            }
-
-            view.findViewById(R.id.buttonCustomServer).setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View ignored) {
-                    Activity activity = getActivity();
-                    if (activity == null) {
-                        return;
-                    }
-                    FavouriteServerAdapter favoritesAdapter = new FavouriteServerAdapter(activity);
-                    ServerAddFragment addServerDialog = new ServerAddFragment(activity, favoritesAdapter);
-                    addServerDialog.show();
-                }
-            });
-        } else {
-            view = inflater.inflate(R.layout.fragment_favorite, container, false);
-
-            FavouriteServerAdapter adapter = new FavouriteServerAdapter(getActivity());
-
-            recyclerView = view.findViewById(R.id.server_recycler);
-            ((SimpleItemAnimator) recyclerView.getItemAnimator()).setSupportsChangeAnimations(false);
-            recyclerView.setLayoutManager(new LinearLayoutManager(recyclerView.getContext()));
-            if (recyclerView.getContext() != null) {
-                recyclerView.setAdapter(adapter);
-            }
-
-            view.findViewById(R.id.buttonServer).setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    Log.d("gor", "clicked add server button");
-                    ServerAddFragment newInstance = new ServerAddFragment(getActivity(), adapter);
-                    newInstance.show();
-                }
-            });
+        View view = inflater.inflate(R.layout.fragment_favorite, container, false);
+        Activity activity = getActivity();
+        if (activity == null) {
+            return view;
         }
 
+        MainActivity.hideKeyboard(activity);
+        FavouriteServerAdapter adapter = new FavouriteServerAdapter(activity);
+        RecyclerView recyclerView = view.findViewById(R.id.server_recycler);
+        if (recyclerView.getItemAnimator() instanceof SimpleItemAnimator) {
+            ((SimpleItemAnimator) recyclerView.getItemAnimator()).setSupportsChangeAnimations(false);
+        }
+        recyclerView.setLayoutManager(new LinearLayoutManager(activity));
+        recyclerView.setAdapter(adapter);
+
+        View addServerButton = view.findViewById(R.id.buttonServer);
+        if (addServerButton != null) {
+            addServerButton.setOnClickListener(ignored -> {
+                ServerAddFragment addServerDialog = new ServerAddFragment(activity, adapter);
+                addServerDialog.show();
+            });
+        }
         return view;
     }
 }

@@ -41,14 +41,7 @@ public class ServersFragment extends Fragment {
 
         @Override
         public CharSequence getPageTitle(int position) {
-            if (position == 0) {
-                return "Favorites";
-            }
-            else if (position == 1) {
-                return "Hosted";
-            }
-
-            return "None";
+            return "Favorites";
         }
     }
 
@@ -70,7 +63,7 @@ public class ServersFragment extends Fragment {
             ViewPagerWithoutSwipe viewPager2 = view.findViewById(R.id.viewPager_servers);
 
             FragmentManager fm = getChildFragmentManager();
-            PagerAdapter sa = new PagerAdapter(fm, 2);
+            PagerAdapter sa = new PagerAdapter(fm, 1);
             viewPager2.setAdapter(sa);
             tabLayout.setupWithViewPager(viewPager2);
         }

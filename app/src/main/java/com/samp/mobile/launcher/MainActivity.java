@@ -2,12 +2,9 @@ package com.samp.mobile.launcher;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -23,21 +20,11 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentPagerAdapter;
-import androidx.lifecycle.Lifecycle;
-import androidx.lifecycle.LifecycleObserver;
-import androidx.lifecycle.OnLifecycleEvent;
-import androidx.lifecycle.ProcessLifecycleOwner;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
 import com.google.android.material.tabs.TabLayout;
 import com.joom.paranoid.Obfuscate;
 import com.samp.mobile.R;
-import com.samp.mobile.launcher.adapters.FavouriteServerAdapter;
-import com.samp.mobile.launcher.adapters.ServerAdapter;
 import com.samp.mobile.launcher.config.Config;
 import com.samp.mobile.launcher.data.FavoritesInfo;
 import com.samp.mobile.launcher.fragments.HomeFragment;
@@ -47,24 +34,14 @@ import com.samp.mobile.launcher.fragments.SettingsFragment;
 import com.samp.mobile.launcher.util.ConfigValidator;
 import com.samp.mobile.launcher.util.SAMPServerInfo;
 import com.samp.mobile.launcher.util.SampQueryAPI;
-import com.samp.mobile.launcher.util.SharedPreferenceCore;
 import com.samp.mobile.launcher.util.SignatureChecker;
 import com.samp.mobile.launcher.util.ViewPagerWithoutSwipe;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
 import java.net.DatagramSocket;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 @Obfuscate
 public class MainActivity extends AppCompatActivity {
 
@@ -152,8 +129,6 @@ public class MainActivity extends AppCompatActivity {
 
         }
         ((ImageView)tabLayout.getTabAt(0).getCustomView().findViewById(R.id.imageView2)).setImageResource(tabSelectedImages[0]);
-
-        getServersInfo();
         getFavoriteServersInfo();
     }
 
@@ -165,67 +140,6 @@ public class MainActivity extends AppCompatActivity {
         return mFavoriteServersList;
     }
 
-
-    public boolean getServersInfo()
-    {
-        final boolean[] z = {false};
-        Volley.newRequestQueue(getApplicationContext()).add(new StringRequest("https://samp-mobile.shop/hosted.json", new Response.Listener<String>() {
-
-            @Override
-            public void onResponse(String response) {
-                try {
-                    JSONObject jsonObject  = new JSONObject(new String(response.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8));
-                    JSONArray jsonArray = jsonObject.getJSONArray("query");
-                    for(int i = 0; i<jsonArray.length(); i++) {
-                        JSONObject jSONObject = jsonArray.getJSONObject(i);
-                        SAMPServerInfo sAMPServerInfo = new SAMPServerInfo();
-                        sAMPServerInfo.setId(jSONObject.getInt("number"));
-                        sAMPServerInfo.setServerName(jSONObject.getString("name"));
-                        sAMPServerInfo.setAddress(jSONObject.getString("ip"));
-                        sAMPServerInfo.setPort(jSONObject.getInt("port"));
-                        sAMPServerInfo.setCurrentPlayerCount(jSONObject.getInt("online"));
-                        sAMPServerInfo.setMaxPlayerCount(jSONObject.getInt("maxplayers"));
-                        sAMPServerInfo.setHasPassword(jSONObject.getBoolean("password"));
-                        sAMPServerInfo.setServerStatus(SAMPServerInfo.Status.ONLINE);
-                        getServerList().add(sAMPServerInfo);
-                    }
-                } catch (JSONException e) {
-                    throw new RuntimeException(e);
-                }
-
-                for (Fragment fragment : getSupportFragmentManager().getFragments()) {
-                    if (fragment instanceof ServersFragment) {
-                        while (!fragment.isAdded()) {
-                            try {
-                                Thread.sleep(1000);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                        if(fragment.isAdded()) {
-                            for (Fragment fragment2 : fragment.getChildFragmentManager().getFragments()) {
-                                if ((fragment2 instanceof ServerPagesItemFragment) && ((ServerPagesItemFragment) fragment2).getPage() == 1 && fragment2.getView() != null) {
-                                    Log.d("AXL", "getserverslist");
-                                    ((RecyclerView.Adapter) Objects.requireNonNull(((RecyclerView) ((View) fragment2.requireView()).findViewById(R.id.server_recycler)).getAdapter())).notifyDataSetChanged();
-                                }
-                            }
-                        }
-                    }
-                }
-
-                z[0] = true;
-            }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                Log.d("x1y2z", "error " + error.toString());
-                getServersInfo();
-                z[0] = false;
-            }
-        }));
-
-        return z[0];
-    }
 
     public void getFavoriteServersInfo()
     {
