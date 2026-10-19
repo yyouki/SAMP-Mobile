@@ -9,6 +9,7 @@ import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -82,6 +83,22 @@ public class ServerAdapter extends RecyclerView.Adapter<ServerAdapter.ViewHolder
         holder.mServerIP.setText("Adress: " + mServersInfo.get(holder.getAdapterPosition()).getAddress());
         holder.mMode.setText("Mode: " + mServersInfo.get(holder.getAdapterPosition()).getServerMode());
 
+
+        holder.mConnect.setOnTouchListener(new ButtonAnimator(mContext, holder.mConnect));
+        holder.mConnect.setOnClickListener(view -> {
+            int adapterPosition = holder.getAdapterPosition();
+            if (adapterPosition == RecyclerView.NO_POSITION || adapterPosition >= mServersInfo.size()) {
+                return;
+            }
+            SAMPServerInfo serverInfo = mServersInfo.get(adapterPosition);
+            if (serverInfo.getHasPassword()) {
+                new ServerInformationFragment((Activity) mContext, ServerAdapter.this,
+                        adapterPosition, serverInfo).show();
+            } else {
+                FavouriteServerInformationFragment.connectToServer((Activity) mContext, serverInfo);
+            }
+        });
+
         holder.mLayout.setOnTouchListener(new ButtonAnimator(mContext, holder.mLayout));
         holder.mLayout.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -124,6 +141,7 @@ public class ServerAdapter extends RecyclerView.Adapter<ServerAdapter.ViewHolder
         public TextView mServerNameText;
         public TextView mOnlineText;
         public TextView mMode;
+        public Button mConnect;
         public ConstraintLayout mLayout;
 
         public ViewHolder(View view) {
@@ -135,6 +153,7 @@ public class ServerAdapter extends RecyclerView.Adapter<ServerAdapter.ViewHolder
             mServerNameText = view.findViewById(R.id.textView6);
             mOnlineText = view.findViewById(R.id.online_text);
             mMode = view.findViewById(R.id.textView18);
+            mConnect = view.findViewById(R.id.server_connect_inline);
         }
 
         public View getView() {
