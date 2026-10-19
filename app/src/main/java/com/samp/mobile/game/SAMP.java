@@ -206,6 +206,7 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
                 if (overlay != null) {
                     overlay.emit("overlay_test_result", "{\"ok\":true,\"message\":\"Kotlin received the event\"}");
                 }
+                return kotlin.Unit.INSTANCE;
             });
         } catch (RuntimeException e) {
             Log.e(TAG, "Unable to initialize OpenCEF overlay", e);
