@@ -153,16 +153,14 @@ public class UpdateService extends Service {
 
                     getFilesInfo(string);
 
-                    if (!isGameUpdateExists()) {
-                        if (mUpdateFiles.isEmpty()) {
-                            mGameStatus = UpdateActivity.GameStatus.Updated;
-                        }
-                        else {
-                            mGameStatus = UpdateActivity.GameStatus.UpdateRequired;
-                        }
-                    }
-                    else {
-                        mGameStatus = UpdateActivity.GameStatus.GameUpdateRequired;
+                    // This fork is installed as a separately signed APK. Never trigger the
+                    // upstream url_launcher/update.apk installer flow: Android will reject
+                    // that package when its signing certificate differs from this build.
+                    // Check and download game data independently of the installed launcher.
+                    if (mUpdateFiles.isEmpty()) {
+                        mGameStatus = UpdateActivity.GameStatus.Updated;
+                    } else {
+                        mGameStatus = UpdateActivity.GameStatus.UpdateRequired;
                     }
 
                     setUpdateStatus(UpdateActivity.UpdateStatus.Undefined);
