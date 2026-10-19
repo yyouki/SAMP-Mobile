@@ -4,12 +4,8 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.net.Uri;
 import android.opengl.GLSurfaceView;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
-import android.os.FileUtils;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -21,17 +17,15 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
-import androidx.core.content.FileProvider;
 
 import com.joom.paranoid.Obfuscate;
 import com.samp.mobile.R;
 import com.samp.mobile.launcher.config.Config;
 import com.samp.mobile.launcher.util.SignatureChecker;
 
-import java.io.File;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -42,8 +36,6 @@ public class UpdateActivity extends AppCompatActivity{
     boolean isBind = false;
     private UpdateMode mUpdateMode = UpdateMode.Undefined;
     public int mGpuType;
-
-    private File mGameApk;
 
     boolean mIsStartingUpdate = false;
 
@@ -125,24 +117,25 @@ public class UpdateActivity extends AppCompatActivity{
                     mIsStartingUpdate = true;
                 }
             }
-            else if(msg.what == 2)
-            {
-                Intent intent;
-                Log.d("x1y2z", "UpdateService.UPDATE_GAME_DATA");
-                //resetProgress(true, 100, 100);
-                if (msg.getData().getBoolean("status", false)) {
-                    String string3 = msg.getData().getString("apkPath", "");
-                    if (string3.length() > 0) {
-                        mGameApk = new File(string3);
-                    }
-                    if (mGameApk == null || !mGameApk.exists()) {
-                        Log.d("x1y2z", "Error update game data");
-                        intent = new Intent(UpdateActivity.this, MainActivity.class);
-                        startActivity(intent);
-                        finish();
-                    } else {
-                        requestInstallGame();
-                    }
+            else if (msg.what == 2) {
+                // Legacy upstream self-update messages are deliberately not installed.
+                // Return to SplashActivity, which always checks and synchronizes game data.
+                Log.w("UpdateActivity", "Ignoring legacy update.apk install request");
+                startActivity(new Intent(UpdateActivity.this, SplashActivity.class));
+                finish();
+            }
+            else if (msg.what == 3) {
+                if (!isFinishing()) {
+                    new AlertDialog.Builder(UpdateActivity.this)
+                            .setTitle("Full data download incomplete")
+                            .setMessage("Some required GTA data files could not be downloaded. Check your connection, then retry. The launcher will stay closed until the required data is available.")
+                            .setCancelable(false)
+                            .setPositiveButton("Retry", (dialog, which) -> {
+                                startActivity(new Intent(UpdateActivity.this, SplashActivity.class));
+                                finish();
+                            })
+                            .setNegativeButton("Exit", (dialog, which) -> finishAndRemoveTask())
+                            .show();
                 }
             }
             else if (msg.what == 1) {
@@ -156,49 +149,6 @@ public class UpdateActivity extends AppCompatActivity{
         }
     }
 
-    void requestInstallGame()
-    {
-        Log.d("x1y2z", "request install game");
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            Uri uri = FileProvider.getUriForFile(getApplicationContext(),
-                    getApplicationContext().getApplicationContext().getPackageName() + ".provider", mGameApk);
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            intent.setDataAndType(uri, "application/vnd.android.package-archive");
-            startActivity(intent);
-
-        } else if(Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-            Uri apkUri = Uri.fromFile(mGameApk);
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setDataAndType(apkUri,
-                    "application/vnd.android.package-archive");
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-        }
-        else {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    Toast.makeText(UpdateActivity.this, "Error, while installing apk. Reenter to the launcher.", Toast.LENGTH_LONG).show();
-                }
-            });
-        }
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        Log.i("UpdateActivity", "onActivityResult -> code quest: " + resultCode + ", resultCode: " + data);
-        if (requestCode == 0) {
-            if (mGameApk != null && mGameApk.exists()) {
-                mGameApk.delete();
-            }
-            startActivity(new Intent(this, SplashActivity.class));
-            finish();
-        }
-    }
 
 
     @Override
@@ -235,7 +185,14 @@ public class UpdateActivity extends AppCompatActivity{
                 Log.e("x1y2z", "GPU name: " + glGetString);
                 Log.e("x1y2z", "GPU type: " + egputype.name());
 
-                mUpdateMode = UpdateMode.valueOf(getIntent().getStringExtra("mode"));
+                String requestedMode = getIntent().getStringExtra("mode");
+                mUpdateMode = requestedMode == null
+                        ? UpdateMode.GameDataUpdate
+                        : UpdateMode.valueOf(requestedMode);
+                // Always use the in-app data sync path. Never open Android's package installer.
+                if (mUpdateMode != UpdateMode.GameDataUpdate) {
+                    mUpdateMode = UpdateMode.GameDataUpdate;
+                }
 
                 if (mService == null) {
                     Intent intent = new Intent(UpdateActivity.this, UpdateService.class);
@@ -277,16 +234,6 @@ public class UpdateActivity extends AppCompatActivity{
 
             if (mUpdateMode == UpdateMode.GameDataUpdate) {
                 Message obtain = Message.obtain((Handler) null, 7);
-                obtain.getData().putInt("gputype", mGpuType);
-                obtain.replyTo = mMessenger;
-                try {
-                    mService.send(obtain);
-                } catch (RemoteException e) {
-                    e.printStackTrace();
-                }
-            }
-            else if (mUpdateMode == UpdateMode.GameUpdate) {
-                Message obtain = Message.obtain((Handler) null, 2);
                 obtain.getData().putInt("gputype", mGpuType);
                 obtain.replyTo = mMessenger;
                 try {

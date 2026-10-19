@@ -178,27 +178,30 @@ public class SplashActivity extends AppCompatActivity {
                 Log.i("x1y2z", "gameStatus = " + valueOf2);
 
                 if (valueOf2 == UpdateActivity.GameStatus.UpdateRequired) {
-                    if (!new SharedPreferenceCore().getBoolean(SplashActivity.this, "MODIFIED_DATA")) {
-                        if (!isFinishing()) {
-                            // Download missing game data inside this app. Do not ask Android
-                            // to install a second update.apk with a potentially different
-                            // signing certificate.
-                            Intent intent = new Intent(SplashActivity.this, UpdateActivity.class);
-                            intent.putExtra("mode", UpdateActivity.UpdateMode.GameDataUpdate.name());
-                            startActivity(intent);
-                            finish();
-                        }
-                    } else {
-                        startActivity(new Intent(SplashActivity.this, MainActivity.class));
-                        finish();
-                    }
-                } else if (valueOf2 == UpdateActivity.GameStatus.GameUpdateRequired) {
-                    // Legacy service status fallback: treat it as a data sync, never as an
-                    // instruction to install a separate launcher APK.
+                    // Always finish syncing the complete supported data manifest before
+                    // opening the launcher. MODIFIED_DATA must not silently bypass missing
+                    // required game files.
                     Intent intent = new Intent(SplashActivity.this, UpdateActivity.class);
                     intent.putExtra("mode", UpdateActivity.UpdateMode.GameDataUpdate.name());
                     startActivity(intent);
                     finish();
+                } else if (valueOf2 == UpdateActivity.GameStatus.GameUpdateRequired) {
+                    // The custom-signed fork never installs the upstream update.apk.
+                    // Treat legacy self-update status as a full game-data sync instead.
+                    Intent intent = new Intent(SplashActivity.this, UpdateActivity.class);
+                    intent.putExtra("mode", UpdateActivity.UpdateMode.GameDataUpdate.name());
+                    startActivity(intent);
+                    finish();
+                } else if (valueOf2 == UpdateActivity.GameStatus.Unknown) {
+                    if (!isFinishing()) {
+                        new AlertDialog.Builder(SplashActivity.this)
+                                .setTitle("Game data check failed")
+                                .setMessage("The full GTA game-data manifest could not be verified. Check your connection and retry. The launcher will not continue with incomplete data.")
+                                .setCancelable(false)
+                                .setPositiveButton("Retry", (dialog, which) -> checkUpdate())
+                                .setNegativeButton("Exit", (dialog, which) -> finishAndRemoveTask())
+                                .show();
+                    }
                 } else {
                     startActivity(new Intent(SplashActivity.this, MainActivity.class));
                     finish();

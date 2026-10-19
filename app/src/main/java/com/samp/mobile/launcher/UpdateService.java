@@ -39,7 +39,9 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Locale;
 @Obfuscate
 public class UpdateService extends Service {
 
@@ -99,7 +101,10 @@ public class UpdateService extends Service {
             } else if (msg.what == 1) {
                 startGameUpdateChecking();
             } else if(msg.what == 2) {
-                updateGame();
+                // Legacy clients may still send the old "update launcher APK" message.
+                // Re-enter the data-manifest path instead of downloading/installing update.apk.
+                mGpuType = msg.getData().getInt("gputype", mGpuType);
+                startUpdating();
             } else if (msg.what == 4) {
                 obtain = Message.obtain(mInHandler, 4);
                 obtain.getData().putString("status", mUpdateStatus.name());
@@ -146,17 +151,22 @@ public class UpdateService extends Service {
                     mUpdateFilesSize = new ArrayList<>();
 
                     JSONObject jSONObject = new JSONObject(response).getJSONObject("client_config");
-                    mUpdateVersion = jSONObject.getInt("version_code");
-                    mUpdateGameURL = jSONObject.getString("url_launcher");
+                    mUpdateVersion = jSONObject.optInt("version_code", 0);
+                    mUpdateGameURL = jSONObject.optString("url_launcher", "");
 
-                    String string = jSONObject.getString("url_cache_files");
+                    String string = jSONObject.optString("url_cache_files", "");
 
-                    getFilesInfo(string);
+                    mUpdateGameDataSize = 0;
+                    mUpdateGameDataSizeUpdated = 0;
+                    if (!getFilesInfo(string)) {
+                        mGameStatus = UpdateActivity.GameStatus.Unknown;
+                        setUpdateStatus(UpdateActivity.UpdateStatus.Undefined);
+                        notifyGameStatus();
+                        return;
+                    }
 
-                    // This fork is installed as a separately signed APK. Never trigger the
-                    // upstream url_launcher/update.apk installer flow: Android will reject
-                    // that package when its signing certificate differs from this build.
-                    // Check and download game data independently of the installed launcher.
+                    // Full Data means every required manifest file for this GPU profile.
+                    // This fork never triggers the upstream launcher APK installer flow.
                     if (mUpdateFiles.isEmpty()) {
                         mGameStatus = UpdateActivity.GameStatus.Updated;
                     } else {
@@ -166,119 +176,152 @@ public class UpdateService extends Service {
                     setUpdateStatus(UpdateActivity.UpdateStatus.Undefined);
 
                 } catch (JSONException e) {
-                    e.printStackTrace();
+                    Log.e("UpdateService", "Could not parse client/data manifest", e);
+                    mGameStatus = UpdateActivity.GameStatus.Unknown;
+                    setUpdateStatus(UpdateActivity.UpdateStatus.Undefined);
+                    notifyGameStatus();
                 }
             }
         }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
-                Log.d("x1y2z", "error " + error.toString());
+                Log.e("UpdateService", "Could not fetch client/data configuration", error);
                 mGameStatus = UpdateActivity.GameStatus.Unknown;
-                Message obtain = Message.obtain(mInHandler, 5);
-                obtain.getData().putString("status", mGameStatus.name());
-                obtain.replyTo = mMessenger;
-                Messenger messenger = mActivityMessenger;
-                if (messenger != null) {
-                    try {
-                        messenger.send(obtain);
-                    } catch (RemoteException e5) {
-                        e5.printStackTrace();
-                    }
-                }
-
+                setUpdateStatus(UpdateActivity.UpdateStatus.Undefined);
+                notifyGameStatus();
             }
         }));
     }
 
-    public void getFilesInfo(String response) throws JSONException {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                HttpURLConnection connection = null;
-                BufferedReader reader = null;
+    private void notifyGameStatus() {
+        if (mActivityMessenger == null) {
+            return;
+        }
+        Message message = Message.obtain(mInHandler, 5);
+        message.getData().putString("status", mGameStatus.name());
+        message.replyTo = mMessenger;
+        try {
+            mActivityMessenger.send(message);
+        } catch (RemoteException e) {
+            Log.e("UpdateService", "Could not report game-data status", e);
+        }
+    }
 
-                try {
-                    URL url = new URL(response);
-                    connection = (HttpURLConnection) url.openConnection();
-                    connection.connect();
+    public boolean getFilesInfo(String response) throws JSONException {
+        if (response == null || response.trim().isEmpty()) {
+            return false;
+        }
 
+        // Reset shared response state before every attempt; otherwise a failed retry could
+        // accidentally reuse an earlier manifest and skip required Full Data files.
+        Util.responseFiles = "";
+        Util.responseFilesInt = 0;
 
-                    InputStream stream = connection.getInputStream();
+        Thread manifestThread = new Thread(() -> {
+            HttpURLConnection connection = null;
+            try {
+                connection = (HttpURLConnection) new URL(response).openConnection();
+                connection.setConnectTimeout(15000);
+                connection.setReadTimeout(15000);
+                connection.setRequestMethod("GET");
+                connection.connect();
 
-                    reader = new BufferedReader(new InputStreamReader(stream));
-
-                    StringBuffer buffer = new StringBuffer();
-                    String line = "";
-
+                StringBuilder buffer = new StringBuilder();
+                try (InputStream stream = connection.getInputStream();
+                     BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+                    String line;
                     while ((line = reader.readLine()) != null) {
-                        buffer.append(line+"\n");
-
+                        buffer.append(line).append('\n');
                     }
-
-                    Util.responseFiles = buffer.toString();
-                    Util.responseFilesInt = 1;
-
-
-                } catch (MalformedURLException e) {
-                    e.printStackTrace();
-                    Util.responseFilesInt = 2;
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    Util.responseFilesInt = 2;
+                }
+                Util.responseFiles = buffer.toString();
+                Util.responseFilesInt = 1;
+            } catch (IOException e) {
+                Log.e("UpdateService", "Full game-data manifest download failed", e);
+                Util.responseFilesInt = 2;
+            } finally {
+                if (connection != null) {
+                    connection.disconnect();
                 }
             }
-        }).start();
-        int i5;
-        while (true) {
-            i5 = Util.responseFilesInt;
-            if (i5 != 0) {
-                break;
-            }
+        }, "FullGameDataManifest");
+        manifestThread.start();
+
+        long deadline = System.currentTimeMillis() + 20000;
+        while (Util.responseFilesInt == 0 && System.currentTimeMillis() < deadline) {
             try {
                 Thread.sleep(30);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                Thread.currentThread().interrupt();
+                return false;
             }
         }
+        if (Util.responseFilesInt != 1 || Util.responseFiles == null || Util.responseFiles.isEmpty()) {
+            Log.e("UpdateService", "Full game-data manifest was not received");
+            return false;
+        }
 
-        if(i5 == 2) return;
-
-        Log.d("x1y2z", "Info: " + Util.responseFiles);
         JSONObject jsonObject = new JSONObject(Util.responseFiles);
-        JSONArray jsonArray = jsonObject.getJSONArray("files");
-        Log.d("x1y2z", "Length: " + jsonArray.length());
-        for(int i = 0; i<jsonArray.length(); i++) {
-            FilesData fileData = new FilesData(jsonArray.getJSONObject(i).getString("name"), jsonArray.getJSONObject(i).getLong("size"), jsonArray.getJSONObject(i).getString("path"), jsonArray.getJSONObject(i).getString("url"));
-            if (!fileData.getName().equals("samp_log.txt") && !fileData.getName().equals("svlog.txt") && !fileData.getName().equals("gtasatelem.set")) {
-                if (!fileData.getName().equals("GTASAMP10.b") && !fileData.getName().equals(".htaccess")) {
-                    if (!fileData.getName().equals("gta_sa.set")) {
-                        if (!fileData.getName().equals("settings.ini")) {
-                            String str = getExternalFilesDir(null) + "/";
-                            File file = new File(str + fileData.getPath());
-                            if (!file.exists() || file.length() != fileData.getSize()) {
-                                if(!fileData.getPath().contains("player") && !fileData.getPath().contains("playerhi") && !fileData.getPath().contains("menu") && !fileData.getPath().contains("samp")) {
-                                    if ((fileData.getPath().contains(".dxt.") && mGpuType != 1))
-                                        continue;
-                                    else if ((fileData.getPath().contains(".etc.") && mGpuType != 2))
-                                        continue;
-                                    else if ((fileData.getPath().contains(".pvr.") && mGpuType != 3))
-                                        continue;
-                                }
+        JSONArray jsonArray = jsonObject.optJSONArray("files");
+        if (jsonArray == null) {
+            Log.e("UpdateService", "Game-data manifest has no files array");
+            return false;
+        }
 
-                                mUpdateFiles.add(fileData.getPath());
-                                Log.d("x1y2z", "File name: " + fileData.getName());
-                                mUpdateFilesName.add(fileData.getName());
-                                Log.d("x1y2z", "File path: " + fileData.getPath());
-                                mUpdateFilesSize.add(fileData.getSize());
-                                mUpdateGameDataSize=mUpdateGameDataSize+fileData.getSize();
-                                Log.d("x1y2z", "File size: " + fileData.getSize());
-                            }
-                            Log.d("x1y2z", "Data size: " + mUpdateGameDataSize);
-                        }
-                    }
-                }
+        File externalRoot = getExternalFilesDir(null);
+        if (externalRoot == null) {
+            Log.e("UpdateService", "External files directory is unavailable");
+            return false;
+        }
+
+        for (int i = 0; i < jsonArray.length(); i++) {
+            JSONObject jsonFile = jsonArray.getJSONObject(i);
+            FilesData fileData = new FilesData(
+                    jsonFile.getString("name"),
+                    jsonFile.getLong("size"),
+                    jsonFile.getString("path"),
+                    jsonFile.getString("url"));
+
+            String name = fileData.getName();
+            // Runtime logs and user-editable configuration are not immutable game assets.
+            if (name.equals("samp_log.txt")
+                    || name.equals("svlog.txt")
+                    || name.equals("gtasatelem.set")
+                    || name.equals("GTASAMP10.b")
+                    || name.equals(".htaccess")
+                    || name.equals("gta_sa.set")
+                    || name.equals("settings.ini")) {
+                continue;
+            }
+
+            String relativePath = fileData.getPath();
+            String normalizedPath = relativePath.toLowerCase(Locale.ROOT);
+
+            // Do not apply a Lite Data filter. Download every required manifest file,
+            // while excluding only mutually exclusive texture encodings for other GPUs.
+            if (normalizedPath.contains(".dxt.") && mGpuType != 1) {
+                continue;
+            }
+            if (normalizedPath.contains(".etc.") && mGpuType != 2) {
+                continue;
+            }
+            if (normalizedPath.contains(".pvr.") && mGpuType != 3) {
+                continue;
+            }
+
+            File file = new File(externalRoot, relativePath);
+            if (!file.exists() || file.length() != fileData.getSize()) {
+                mUpdateFiles.add(relativePath);
+                mUpdateFilesName.add(name);
+                mUpdateFilesSize.add(fileData.getSize());
+                mUpdateGameDataSize += fileData.getSize();
+                Log.d("UpdateService", "Full-data file needs sync: " + relativePath
+                        + " (" + fileData.getSize() + " bytes)");
             }
         }
+        Log.i("UpdateService", "Full-data sync check found " + mUpdateFiles.size()
+                + " files / " + mUpdateGameDataSize + " bytes for GPU profile " + mGpuType);
+        return true;
     }
 
     public void updateGame() {
@@ -387,7 +430,7 @@ public class UpdateService extends Service {
                         obtain.getData().putString("status", UpdateActivity.UpdateStatus.DownloadGameData.name());
                         obtain.getData().putBoolean("withProgress", true);
                         obtain.getData().putLong("current", longRef1.element+progress.currentBytes);
-                        obtain.getData().putLong("total", mUpdateGameDataSize/2);
+                        obtain.getData().putLong("total", mUpdateGameDataSize);
                         obtain.getData().putString("filename", (String)arrayList1.get(intRef.element));
                         obtain.getData().putLong("totalfiles", arrayList.size());
                         obtain.getData().putLong("currentfile", intRef.element);
@@ -432,7 +475,22 @@ public class UpdateService extends Service {
 
         mDownloadingStatus = false;
 
-        Log.d("UpdateService", "updateGameData()");
+        if (!mUpdateFiles.isEmpty()) {
+            // Failed files remain in this list. Do not let the launcher continue with a partial
+            // asset set; the Retry action creates a fresh service and rechecks the full manifest.
+            mGameStatus = UpdateActivity.GameStatus.Unknown;
+            Message failed = Message.obtain(mInHandler, 3);
+            if (mActivityMessenger != null) {
+                try {
+                    mActivityMessenger.send(failed);
+                } catch (RemoteException e) {
+                    Log.e("UpdateService", "Could not report incomplete full-data download", e);
+                }
+            }
+            return;
+        }
+
+        Log.d("UpdateService", "Full game-data sync completed");
         Message obtain = Message.obtain(this.mInHandler, 1);
         obtain.getData().putBoolean("status", true);
         obtain.replyTo = mMessenger;

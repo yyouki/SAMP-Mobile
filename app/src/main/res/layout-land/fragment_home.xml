@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
+
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:foregroundGravity="center">
+
+        <ImageView
+            android:id="@+id/imageView"
+            android:layout_width="112dp"
+            android:layout_height="112dp"
+            android:layout_gravity="center"
+            android:contentDescription="SA-MP Mobile logo"
+            android:scaleType="fitCenter"
+            app:srcCompat="@drawable/logo" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="2"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp">
+
+        <TextView
+            android:id="@+id/textView9"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/montserrat_bold"
+            android:gravity="center"
+            android:text="Our community"
+            android:textColor="@color/white"
+            android:textSize="22sp" />
+
+        <View
+            android:id="@+id/view2"
+            android:layout_width="180dp"
+            android:layout_height="3dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="20dp"
+            android:background="#FF0037" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <ImageView
+                android:id="@+id/discord_logo"
+                android:layout_width="0dp"
+                android:layout_height="54dp"
+                android:layout_weight="1"
+                android:layout_margin="8dp"
+                android:contentDescription="Discord community"
+                android:scaleType="fitCenter"
+                app:srcCompat="@drawable/discord_logo" />
+
+            <ImageView
+                android:id="@+id/youtube_logo"
+                android:layout_width="0dp"
+                android:layout_height="54dp"
+                android:layout_weight="1"
+                android:layout_margin="8dp"
+                android:contentDescription="YouTube channel"
+                android:scaleType="fitCenter"
+                app:srcCompat="@drawable/youtube_logo" />
+
+            <ImageView
+                android:id="@+id/internet_button"
+                android:layout_width="0dp"
+                android:layout_height="54dp"
+                android:layout_weight="1"
+                android:layout_margin="8dp"
+                android:contentDescription="SA-MP Mobile website"
+                android:scaleType="fitCenter"
+                app:srcCompat="@drawable/internet" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

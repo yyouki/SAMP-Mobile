@@ -5,7 +5,8 @@ This is the implementation backlog for the private `opencef-integration-landscap
 ## Phase 0 — Stability and Android compatibility
 
 - Preserve the working first-launch preferences fix in `SplashActivity`.
-- [x] Upgrade the Android build toolchain to compile/target Android 16 (API 36). Device regression checks for edge-to-edge, Back, and landscape behavior remain pending.
+- [x] Upgrade the Android build toolchain to compile/target Android 16 (API 36). Device regression checks for edge-to-edge and Back remain pending.
+- [x] Make the game-data manifest mandatory before launcher entry, validate manifest fetch failure, and keep retry/exit visible when required full data cannot be verified.
 - Review predictive Back, edge-to-edge insets, landscape behavior, permissions, and runtime compatibility on Android 16.
 - Keep arm32/arm64 ABI declarations truthful; a Gradle ABI filter is not proof that all native gameplay/mod libraries exist for both ABIs.
 - Exit criteria: CI tests and combined debug APK build pass; device smoke test covers first launch, background/resume, Back, dialogs, and gameplay entry.
@@ -13,6 +14,7 @@ This is the implementation backlog for the private `opencef-integration-landscap
 ## Phase 1 — Launcher and PC-style menus
 
 - [x] Remove the Hosted-server feed/tab and its network request; retain Favorites and manual IP/port addition.
+- [x] Add dedicated landscape layouts for the launcher shell, Home, Settings, Favorites, and compact server rows.
 - Redesign dialogs and the scoreboard/tab display to resemble desktop SA-MP conventions while remaining readable in landscape on a phone.
 - Change game settings presentation toward the GTA: San Andreas settings organization without copying external artwork/assets unless rights are clear.
 - Add a client-side command console/window for supported client commands, with safe parsing and a documented list of commands.
@@ -55,4 +57,4 @@ This is the implementation backlog for the private `opencef-integration-landscap
 
 ## Current status
 
-The private combined APK builds, the first-launch `SharedPreferences` crash was fixed, the Hosted feed/tab was removed, and the branch now targets Android 16/API 36. Runtime regression testing on the user's phone is still required. The OpenCEF page remains a local bridge smoke test rather than a production browser. Remaining items above are requirements/backlog, not claims that those features are already implemented.
+The private combined APK builds, the first-launch `SharedPreferences` crash was fixed, the Hosted feed/tab was removed, the branch targets Android 16/API 36, landscape-specific layouts were added, and the updater now requires the full manifest for the detected GPU profile rather than a Lite subset. Runtime regression testing on the user's phone is still required. The OpenCEF page remains a local bridge smoke test rather than a production browser. Remaining items above are requirements/backlog, not claims that those features are already implemented.
