@@ -53,7 +53,7 @@
         android:layout_marginBottom="8dp"
         android:background="@drawable/ic_buttoncolor"
         android:fontFamily="@font/montserrat_bold"
-        android:text="ADD SERVER"
+        android:text="ADD TO FAVORITES"
         android:textColor="@color/white"
         android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="parent"

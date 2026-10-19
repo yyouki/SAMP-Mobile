@@ -59,10 +59,10 @@ public final class SAMPServerInfo implements Parcelable {
         currentPlayerCount = i4;
         maxPlayerCount = i5;
         hasPassword = i6 != 0;
-        serverMode = "Android";
-        this.language = language;
+        serverMode = "—";
+        this.language = language == null || language.trim().isEmpty() ? "—" : language.trim();
         serverStatus = i7 != 0 ? Status.ONLINE : Status.OFFLINE;
-        ping = 1;
+        ping = -1;
         favorite = i8 != 0 ? true : z;
         type = i == 0 ? Official.OFFICIAL : i == 1 ? Official.HOSTED : Official.CUSTOM;
     }

@@ -1,7 +1,5 @@
 package com.samp.mobile.launcher.fragments;
 
-import android.content.DialogInterface;
-import android.content.Intent;
 import android.os.Bundle;
 import android.transition.Fade;
 import android.util.Log;
@@ -10,7 +8,6 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -19,8 +16,6 @@ import androidx.recyclerview.widget.SimpleItemAnimator;
 import com.joom.paranoid.Obfuscate;
 import com.samp.mobile.R;
 import com.samp.mobile.launcher.MainActivity;
-import com.samp.mobile.launcher.SplashActivity;
-import com.samp.mobile.launcher.UpdateActivity;
 import com.samp.mobile.launcher.adapters.FavouriteServerAdapter;
 import com.samp.mobile.launcher.adapters.ServerAdapter;
 import com.samp.mobile.launcher.util.ButtonAnimator;
@@ -30,7 +25,6 @@ import java.util.Objects;
 public class ServerPagesItemFragment extends Fragment {
 
     private int pagePosition;
-    AlertDialog.Builder builder;
 
     public static ServerPagesItemFragment newInstance(int page)
     {
@@ -55,7 +49,6 @@ public class ServerPagesItemFragment extends Fragment {
             Log.d("InfoJSON", "ServerPagesItemFragment " + pagePosition);
         }
 
-        builder = new AlertDialog.Builder(getContext());
     }
 
     @Override
@@ -84,20 +77,14 @@ public class ServerPagesItemFragment extends Fragment {
 
             view.findViewById(R.id.buttonCustomServer).setOnClickListener(new View.OnClickListener() {
                 @Override
-                public void onClick(View view) {
-                    Log.d("gor", "clicked add server button");
-                    builder.setMessage("Write me to add here your server (25$ per month)!\nTelegram: @gorgrigoryan18\n" +
-                                    "Discord: x1y2z")
-                            .setCancelable(false)
-                            .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-                                public void onClick(DialogInterface dialog, int id) {
-                                    dialog.dismiss();
-                                }
-                            })
-                            .setNegativeButton("", null);
-                    AlertDialog alert = builder.create();
-                    alert.setTitle("Update");
-                    alert.show();
+                public void onClick(View ignored) {
+                    Activity activity = getActivity();
+                    if (activity == null) {
+                        return;
+                    }
+                    FavouriteServerAdapter favoritesAdapter = new FavouriteServerAdapter(activity);
+                    ServerAddFragment addServerDialog = new ServerAddFragment(activity, favoritesAdapter);
+                    addServerDialog.show();
                 }
             });
         } else {

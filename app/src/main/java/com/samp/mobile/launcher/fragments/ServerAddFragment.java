@@ -93,7 +93,7 @@ public class ServerAddFragment extends Dialog {
                     }
                     FavoritesInfo.AddServer(getContext(), 0, 0, editText.getText().toString().split(":")[0], Integer.parseInt(editText.getText().toString().split(":")[1]));
                     FavoritesInfo.Save(getContext());
-                    ((MainActivity)activity).getFavoriteServerList().add(new SAMPServerInfo(0,0,"Loading...", editText.getText().toString().split(":")[0], Integer.parseInt(editText.getText().toString().split(":")[1]), 0,0,0,0,0,"English"));
+                    ((MainActivity)activity).getFavoriteServerList().add(new SAMPServerInfo(0,0,"Loading...", editText.getText().toString().split(":")[0], Integer.parseInt(editText.getText().toString().split(":")[1]), 0,0,0,0,0,"—"));
                     ((MainActivity)activity).refreshFavoriteServers();
                 } else {
                     Toast.makeText(activity, "Invalid ip and port. (Use IP:PORT or IP)", Toast.LENGTH_LONG).show();

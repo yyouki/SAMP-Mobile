@@ -3,6 +3,7 @@ package com.samp.mobile.launcher;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -13,6 +14,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -120,6 +122,9 @@ public class MainActivity extends AppCompatActivity {
 
             ImageView image = inflate.findViewById(R.id.imageView2);
             image.setBackgroundResource(tabImages[i]);
+            TextView title = inflate.findViewById(R.id.tab_text);
+            title.setText(tabTitles[i]);
+            title.setTextColor(i == 0 ? Color.parseColor("#FF0037") : Color.parseColor("#AAA9A9"));
 
             Objects.requireNonNull(tabLayout.getTabAt(i)).setCustomView(inflate);
 
@@ -130,11 +135,13 @@ public class MainActivity extends AppCompatActivity {
                     getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
                     pa.setCurrentItem(tab.getPosition(), true);
                     ((ImageView)tab.getCustomView().findViewById(R.id.imageView2)).setBackgroundResource(tabSelectedImages[tab.getPosition()]);
+                    ((TextView)tab.getCustomView().findViewById(R.id.tab_text)).setTextColor(Color.parseColor("#FF0037"));
                 }
 
                 @Override
                 public void onTabUnselected(TabLayout.Tab tab) {
                     ((ImageView)tab.getCustomView().findViewById(R.id.imageView2)).setBackgroundResource(tabImages[tab.getPosition()]);
+                    ((TextView)tab.getCustomView().findViewById(R.id.tab_text)).setTextColor(Color.parseColor("#AAA9A9"));
                 }
 
                 @Override
@@ -180,7 +187,6 @@ public class MainActivity extends AppCompatActivity {
                         sAMPServerInfo.setMaxPlayerCount(jSONObject.getInt("maxplayers"));
                         sAMPServerInfo.setHasPassword(jSONObject.getBoolean("password"));
                         sAMPServerInfo.setServerStatus(SAMPServerInfo.Status.ONLINE);
-                        sAMPServerInfo.setPing(12);
                         getServerList().add(sAMPServerInfo);
                     }
                 } catch (JSONException e) {
@@ -225,7 +231,7 @@ public class MainActivity extends AppCompatActivity {
     {
         for(int i = 0; i< FavoritesInfo.getServerList(this).size(); i++)
         {
-            SAMPServerInfo serverInfo = new SAMPServerInfo(i, i, "Loading...", FavoritesInfo.getServerList(this).get(i).ip, FavoritesInfo.getServerList(this).get(i).port, 0, 0, 0, 0, 0, "English");
+            SAMPServerInfo serverInfo = new SAMPServerInfo(i, i, "Loading...", FavoritesInfo.getServerList(this).get(i).ip, FavoritesInfo.getServerList(this).get(i).port, 0, 0, 0, 0, 0, "—");
             serverInfo.setFavorite(true);
             serverInfo.setQueried(false);
             getFavoriteServerList().add(serverInfo);
@@ -245,7 +251,9 @@ public class MainActivity extends AppCompatActivity {
                         return null;
                     }
                     String[] info = sampQuery.mo7164b();
-                    getFavoriteServerList().set(intValue, new SAMPServerInfo(intValue, intValue, info[3], getFavoriteServerList().get(intValue).getAddress(), getFavoriteServerList().get(intValue).getPort(), Integer.parseInt(info[1]), Integer.parseInt(info[2]), Integer.parseInt(info[0]), 0, 0, info[5]));
+                    SAMPServerInfo queriedServer = new SAMPServerInfo(intValue, intValue, info[3], getFavoriteServerList().get(intValue).getAddress(), getFavoriteServerList().get(intValue).getPort(), Integer.parseInt(info[1]), Integer.parseInt(info[2]), Integer.parseInt(info[0]), 0, 0, info[5]);
+                    queriedServer.setServerMode(info[4]);
+                    getFavoriteServerList().set(intValue, queriedServer);
                     DatagramSocket datagramSocket = sampQuery.f7277a;
                     if (datagramSocket != null) {
                         datagramSocket.close();
