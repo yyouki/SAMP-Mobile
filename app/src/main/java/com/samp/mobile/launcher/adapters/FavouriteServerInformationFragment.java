@@ -27,6 +27,7 @@ import com.samp.mobile.game.SAMP;
 import com.samp.mobile.launcher.MainActivity;
 import com.samp.mobile.launcher.data.FavoritesInfo;
 import com.samp.mobile.launcher.util.ButtonAnimator;
+import com.samp.mobile.launcher.util.ConfigValidator;
 import com.samp.mobile.launcher.util.SAMPServerInfo;
 import com.samp.mobile.launcher.util.SharedPreferenceCore;
 
@@ -126,74 +127,9 @@ public class FavouriteServerInformationFragment extends Dialog {
 
         Button mConnect = findViewById(R.id.server_connect);
         mConnect.setOnTouchListener(new ButtonAnimator(getContext(), mConnect));
-        mConnect.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                File file = new File(act.getExternalFilesDir(null) + "/SAMP/settings.ini");
-                if(file.exists()) {
-                    try {
-                        Wini wini = new Wini(file);
-                        String name = wini.get("client", "name");
-                        wini.put("client", "host", sampServerInfo.getAddress());
-                        wini.put("client", "port", sampServerInfo.getPort());
-                        wini.store();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-
-                if(new SharedPreferenceCore().getBoolean(getContext(), "MLOADER"))
-                {
-                    String data = Environment.getExternalStorageDirectory() + "/Android/media/com.samp.mobile";
-                    File file4 = new File(data + "/monetloader/compat/profile.json");
-                    Log.d("AXL", data + "/monetloader/compat/profile.json");
-                    if(file4.isDirectory() || !file4.exists())
-                    {
-                        file4.delete();
-                        try {
-                            file.createNewFile();
-                            FileWriter writer = new FileWriter(file4);
-                            writer.append("{\n" +
-                                    "  \"gtasa_name\": \"libGTASA.so\",\n" +
-                                    "  \"profile_name\": \"SA-MP 0.3.7\",\n" +
-                                    "  \"compat_scripts\": [],\n" +
-                                    "  \"samp_name\": \"libsamp.so\",\n" +
-                                    "  \"receiveignorerpc_pattern\": \"F0B503AF2DE900????B004460068C16A20468847\",\n" +
-                                    "  \"cnetgame_ctor_pattern\": \"F0B503AF2DE9000788B00D46????9146????0446002079447A44\",\n" +
-                                    "  \"rakclientinterface_netgame_offset\": 528,\n" +
-                                    "  \"use_samp_touch_workaround\": true,\n" +
-                                    "  \"nveventinsertnewest_offset\": 2606320\n" +
-                                    "}");
-                            writer.flush();
-                            writer.close();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-
-                File file1 = new File(act.getExternalFilesDir(null) + "/Text/american.dxt");
-                if(!file1.exists())
-                {
-                    File file2 = new File(act.getExternalFilesDir(null) + "/Textures/fonts/RussianFont.png");
-                    if(!file2.exists())
-                    {
-                        Toast.makeText(act, "Some important files in your modified data are missing, such as \"Text\" and \"Textures\"" +
-                                "Please, fix it and after try again. ( You can get that files in my discord channel )", Toast.LENGTH_LONG).show();
-
-                        dismiss();
-                    }
-                    else {
-                        act.startActivity(new Intent(act, SAMP.class));
-                        act.finish();
-                        dismiss();
-                    }
-                }
-                else {
-                    act.startActivity(new Intent(act, SAMP.class));
-                    act.finish();
-                    dismiss();
-                }
+        mConnect.setOnClickListener(view -> {
+            if (connectToServer(act, sampServerInfo, mServerPassword.getText().toString())) {
+                dismiss();
             }
         });
 
@@ -204,6 +140,88 @@ public class FavouriteServerInformationFragment extends Dialog {
                 dismiss();
             }
         });
+    }
+
+
+    public static boolean connectToServer(Activity activity, SAMPServerInfo serverInfo) {
+        return connectToServer(activity, serverInfo, "");
+    }
+
+    public static boolean connectToServer(Activity activity, SAMPServerInfo serverInfo, String password) {
+        if (activity == null || serverInfo == null) {
+            return false;
+        }
+
+        File externalRoot = activity.getExternalFilesDir(null);
+        if (externalRoot == null) {
+            Toast.makeText(activity, "External game-data directory is unavailable.", Toast.LENGTH_LONG).show();
+            return false;
+        }
+
+        ConfigValidator.validateConfigFiles(activity);
+        File settingsFile = new File(externalRoot, "SAMP/settings.ini");
+        try {
+            Wini wini = new Wini(settingsFile);
+            wini.put("client", "host", serverInfo.getAddress());
+            wini.put("client", "port", serverInfo.getPort());
+            wini.put("client", "password", password == null ? "" : password);
+            wini.store();
+        } catch (Exception e) {
+            Log.e("ServerConnect", "Could not save server connection settings", e);
+            Toast.makeText(activity, "Could not save server settings. Reopen the launcher and retry.", Toast.LENGTH_LONG).show();
+            return false;
+        }
+
+        if (new SharedPreferenceCore().getBoolean(activity, "MLOADER")) {
+            File profileFile = new File(
+                    Environment.getExternalStorageDirectory(),
+                    "Android/media/com.samp.mobile/monetloader/compat/profile.json");
+            File profileDirectory = profileFile.getParentFile();
+            if (profileDirectory == null || (!profileDirectory.exists() && !profileDirectory.mkdirs())
+                    || profileFile.isDirectory()) {
+                Toast.makeText(activity, "Could not prepare the MLOADER compatibility profile.", Toast.LENGTH_LONG).show();
+                return false;
+            }
+
+            String profile = "{\n"
+                    + "  \"gtasa_name\": \"libGTASA.so\",\n"
+                    + "  \"profile_name\": \"SA-MP 0.3.7\",\n"
+                    + "  \"compat_scripts\": [],\n"
+                    + "  \"samp_name\": \"libsamp.so\",\n"
+                    + "  \"receiveignorerpc_pattern\": \"F0B503AF2DE900????B004460068C16A20468847\",\n"
+                    + "  \"cnetgame_ctor_pattern\": \"F0B503AF2DE9000788B00D46????9146????0446002079447A44\",\n"
+                    + "  \"rakclientinterface_netgame_offset\": 528,\n"
+                    + "  \"use_samp_touch_workaround\": true,\n"
+                    + "  \"nveventinsertnewest_offset\": 2606320\n"
+                    + "}";
+
+            try (FileWriter writer = new FileWriter(profileFile, false)) {
+                writer.write(profile);
+            } catch (IOException e) {
+                Log.e("ServerConnect", "Could not write MLOADER compatibility profile", e);
+                Toast.makeText(activity, "Could not write the MLOADER compatibility profile.", Toast.LENGTH_LONG).show();
+                return false;
+            }
+        }
+
+        File requiredText = new File(externalRoot, "Text/american.dxt");
+        File alternateTexture = new File(externalRoot, "Textures/fonts/RussianFont.png");
+        if (!requiredText.isFile() && !alternateTexture.isFile()) {
+            Toast.makeText(activity,
+                    "GTA/SA-MP data is missing or incomplete. Finish the Full Data sync, then connect again.",
+                    Toast.LENGTH_LONG).show();
+            return false;
+        }
+
+        try {
+            activity.startActivity(new Intent(activity, SAMP.class));
+            activity.finish();
+            return true;
+        } catch (RuntimeException e) {
+            Log.e("ServerConnect", "Could not launch the game client", e);
+            Toast.makeText(activity, "Could not start the game client.", Toast.LENGTH_LONG).show();
+            return false;
+        }
     }
 
 }

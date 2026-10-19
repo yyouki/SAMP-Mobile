@@ -2,10 +2,12 @@ package com.samp.mobile.launcher.adapters;
 
 import android.app.Activity;
 import android.content.Context;
+import android.app.Activity;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -16,6 +18,7 @@ import com.joom.paranoid.Obfuscate;
 import com.samp.mobile.R;
 import com.samp.mobile.launcher.MainActivity;
 import com.samp.mobile.launcher.util.ButtonAnimator;
+import com.samp.mobile.launcher.util.SAMPServerInfo;
 @Obfuscate
 public class FavouriteServerAdapter extends RecyclerView.Adapter<FavouriteServerAdapter.ViewHolder>{
 
@@ -50,6 +53,22 @@ public class FavouriteServerAdapter extends RecyclerView.Adapter<FavouriteServer
         holder.mServerIP.setText("Address: " + ((MainActivity) mActivity).getFavoriteServerList().get(holder.getAdapterPosition()).getAddress());
         holder.mMode.setText("Mode: " + ((MainActivity) mActivity).getFavoriteServerList().get(holder.getAdapterPosition()).getServerMode());
 
+        holder.mConnect.setOnTouchListener(new ButtonAnimator(mActivity, holder.mConnect));
+        holder.mConnect.setOnClickListener(view -> {
+            int adapterPosition = holder.getAdapterPosition();
+            if (adapterPosition == RecyclerView.NO_POSITION) {
+                return;
+            }
+            SAMPServerInfo serverInfo = ((MainActivity) mActivity).getFavoriteServerList().get(adapterPosition);
+            if (serverInfo.getHasPassword()) {
+                FavouriteServerInformationFragment dialog = new FavouriteServerInformationFragment(
+                        (Activity) mActivity, FavouriteServerAdapter.this, adapterPosition, serverInfo);
+                dialog.show();
+            } else {
+                FavouriteServerInformationFragment.connectToServer((Activity) mActivity, serverInfo);
+            }
+        });
+
         holder.mLayout.setOnTouchListener(new ButtonAnimator(mActivity, holder.mLayout));
         holder.mLayout.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -74,6 +93,7 @@ public class FavouriteServerAdapter extends RecyclerView.Adapter<FavouriteServer
         public TextView mServerNameText;
         public TextView mOnlineText;
         public TextView mMode;
+        public Button mConnect;
         public ConstraintLayout mLayout;
 
         public ViewHolder(View view) {
@@ -85,6 +105,7 @@ public class FavouriteServerAdapter extends RecyclerView.Adapter<FavouriteServer
             mServerNameText = view.findViewById(R.id.textView6);
             mOnlineText = view.findViewById(R.id.online_text);
             mMode = view.findViewById(R.id.textView18);
+            mConnect = view.findViewById(R.id.server_connect_inline);
         }
 
         public View getView() {

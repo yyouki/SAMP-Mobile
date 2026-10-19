@@ -61,6 +61,7 @@ public class UpdateService extends Service {
 
     public ArrayList<String> mUpdateFiles;
     public ArrayList<String> mUpdateFilesName;
+    public ArrayList<String> mUpdateFilesUrl;
     public ArrayList<Long> mUpdateFilesSize;
 
     public int mGpuType = 0;
@@ -142,55 +143,70 @@ public class UpdateService extends Service {
     void startUpdating()
     {
         setUpdateStatus(UpdateActivity.UpdateStatus.CheckUpdate);
-        Volley.newRequestQueue(getApplicationContext()).add(new StringRequest("https://samp-mobile.shop/client_config.json", new Response.Listener<String>() {
-            @Override
-            public void onResponse(String response) {
-                try {
-                    mUpdateFiles = new ArrayList<>();
-                    mUpdateFilesName = new ArrayList<>();
-                    mUpdateFilesSize = new ArrayList<>();
+        Volley.newRequestQueue(getApplicationContext()).add(new StringRequest(
+                "https://alynsampmobile.pro/update.json",
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        try {
+                            mUpdateFiles = new ArrayList<>();
+                            mUpdateFilesName = new ArrayList<>();
+                            mUpdateFilesUrl = new ArrayList<>();
+                            mUpdateFilesSize = new ArrayList<>();
+                            mUpdateGameDataSize = 0;
+                            mUpdateGameDataSizeUpdated = 0;
 
-                    JSONObject jSONObject = new JSONObject(response).getJSONObject("client_config");
-                    mUpdateVersion = jSONObject.optInt("version_code", 0);
-                    mUpdateGameURL = jSONObject.optString("url_launcher", "");
+                            // Alyn's updater exposes separate full-GTA-data and SA-MP-client manifests.
+                            // Always choose the full manifest; never fall back to Lite Data.
+                            JSONObject updateConfig = new JSONObject(response);
+                            String fullListUrl = updateConfig.optString("full_list_url", "").trim();
+                            String sampListUrl = updateConfig.optString("samp_list_url", "").trim();
+                            mUpdateVersion = 0;
+                            mUpdateGameURL = ""; // This fork must not install a third-party launcher APK.
 
-                    String string = jSONObject.optString("url_cache_files", "");
+                            if (fullListUrl.isEmpty() || !getFilesInfo(fullListUrl)) {
+                                Log.e("UpdateService", "Alyn full-data manifest could not be loaded");
+                                mGameStatus = UpdateActivity.GameStatus.Unknown;
+                                setUpdateStatus(UpdateActivity.UpdateStatus.Undefined);
+                                notifyGameStatus();
+                                return;
+                            }
 
-                    mUpdateGameDataSize = 0;
-                    mUpdateGameDataSizeUpdated = 0;
-                    if (!getFilesInfo(string)) {
+                            if (!sampListUrl.isEmpty() && !getFilesInfo(sampListUrl)) {
+                                Log.e("UpdateService", "Alyn SA-MP manifest could not be loaded");
+                                mGameStatus = UpdateActivity.GameStatus.Unknown;
+                                setUpdateStatus(UpdateActivity.UpdateStatus.Undefined);
+                                notifyGameStatus();
+                                return;
+                            }
+
+                            if (mUpdateFiles.isEmpty()) {
+                                mGameStatus = UpdateActivity.GameStatus.Updated;
+                            } else {
+                                mGameStatus = UpdateActivity.GameStatus.UpdateRequired;
+                            }
+
+                            Log.i("UpdateService", "Alyn Full Data check: " + mUpdateFiles.size()
+                                    + " files / " + mUpdateGameDataSize + " bytes");
+                            setUpdateStatus(UpdateActivity.UpdateStatus.Undefined);
+                            notifyGameStatus();
+                        } catch (JSONException e) {
+                            Log.e("UpdateService", "Could not parse Alyn update/data manifests", e);
+                            mGameStatus = UpdateActivity.GameStatus.Unknown;
+                            setUpdateStatus(UpdateActivity.UpdateStatus.Undefined);
+                            notifyGameStatus();
+                        }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Log.e("UpdateService", "Could not fetch Alyn update configuration", error);
                         mGameStatus = UpdateActivity.GameStatus.Unknown;
                         setUpdateStatus(UpdateActivity.UpdateStatus.Undefined);
                         notifyGameStatus();
-                        return;
                     }
-
-                    // Full Data means every required manifest file for this GPU profile.
-                    // This fork never triggers the upstream launcher APK installer flow.
-                    if (mUpdateFiles.isEmpty()) {
-                        mGameStatus = UpdateActivity.GameStatus.Updated;
-                    } else {
-                        mGameStatus = UpdateActivity.GameStatus.UpdateRequired;
-                    }
-
-                    setUpdateStatus(UpdateActivity.UpdateStatus.Undefined);
-
-                } catch (JSONException e) {
-                    Log.e("UpdateService", "Could not parse client/data manifest", e);
-                    mGameStatus = UpdateActivity.GameStatus.Unknown;
-                    setUpdateStatus(UpdateActivity.UpdateStatus.Undefined);
-                    notifyGameStatus();
-                }
-            }
-        }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                Log.e("UpdateService", "Could not fetch client/data configuration", error);
-                mGameStatus = UpdateActivity.GameStatus.Unknown;
-                setUpdateStatus(UpdateActivity.UpdateStatus.Undefined);
-                notifyGameStatus();
-            }
-        }));
+                }));
     }
 
     private void notifyGameStatus() {
@@ -212,8 +228,6 @@ public class UpdateService extends Service {
             return false;
         }
 
-        // Reset shared response state before every attempt; otherwise a failed retry could
-        // accidentally reuse an earlier manifest and skip required Full Data files.
         Util.responseFiles = "";
         Util.responseFilesInt = 0;
 
@@ -237,14 +251,14 @@ public class UpdateService extends Service {
                 Util.responseFiles = buffer.toString();
                 Util.responseFilesInt = 1;
             } catch (IOException e) {
-                Log.e("UpdateService", "Full game-data manifest download failed", e);
+                Log.e("UpdateService", "Alyn game-data manifest download failed: " + response, e);
                 Util.responseFilesInt = 2;
             } finally {
                 if (connection != null) {
                     connection.disconnect();
                 }
             }
-        }, "FullGameDataManifest");
+        }, "AlynFullGameDataManifest");
         manifestThread.start();
 
         long deadline = System.currentTimeMillis() + 20000;
@@ -257,14 +271,14 @@ public class UpdateService extends Service {
             }
         }
         if (Util.responseFilesInt != 1 || Util.responseFiles == null || Util.responseFiles.isEmpty()) {
-            Log.e("UpdateService", "Full game-data manifest was not received");
+            Log.e("UpdateService", "Alyn game-data manifest was not received");
             return false;
         }
 
         JSONObject jsonObject = new JSONObject(Util.responseFiles);
         JSONArray jsonArray = jsonObject.optJSONArray("files");
         if (jsonArray == null) {
-            Log.e("UpdateService", "Game-data manifest has no files array");
+            Log.e("UpdateService", "Alyn game-data manifest has no files array");
             return false;
         }
 
@@ -283,43 +297,78 @@ public class UpdateService extends Service {
                     jsonFile.getString("url"));
 
             String name = fileData.getName();
-            // Runtime logs and user-editable configuration are not immutable game assets.
-            if (name.equals("samp_log.txt")
-                    || name.equals("svlog.txt")
-                    || name.equals("gtasatelem.set")
-                    || name.equals("GTASAMP10.b")
-                    || name.equals(".htaccess")
-                    || name.equals("gta_sa.set")
-                    || name.equals("settings.ini")) {
+            String normalizedName = name.toLowerCase(Locale.ROOT);
+            // Do not overwrite runtime logs or user-editable configuration.
+            if (normalizedName.equals("samp_log.txt")
+                    || normalizedName.equals("svlog.txt")
+                    || normalizedName.equals("gtasatelem.set")
+                    || normalizedName.equals("gtasamp10.b")
+                    || normalizedName.equals(".htaccess")
+                    || normalizedName.equals("gta_sa.set")
+                    || normalizedName.equals("settings.ini")) {
                 continue;
             }
 
             String relativePath = fileData.getPath();
             String normalizedPath = relativePath.toLowerCase(Locale.ROOT);
+            String normalizedSlashes = relativePath.replace('\\', '/');
+            if (relativePath.trim().isEmpty()
+                    || relativePath.startsWith("/")
+                    || relativePath.indexOf(':') >= 0
+                    || normalizedSlashes.startsWith("../")
+                    || normalizedSlashes.contains("/../")
+                    || normalizedSlashes.endsWith("/..")) {
+                Log.e("UpdateService", "Rejected unsafe manifest path: " + relativePath);
+                return false;
+            }
 
-            // Do not apply a Lite Data filter. Download every required manifest file,
-            // while excluding only mutually exclusive texture encodings for other GPUs.
-            if (normalizedPath.contains(".dxt.") && mGpuType != 1) {
-                continue;
+            String fileUrl = fileData.getUrl();
+            if (fileUrl == null || fileUrl.trim().isEmpty()) {
+                Log.e("UpdateService", "Alyn manifest item has no download URL: " + relativePath);
+                return false;
             }
-            if (normalizedPath.contains(".etc.") && mGpuType != 2) {
-                continue;
+            try {
+                URL parsedUrl = new URL(fileUrl);
+                if (!"https".equalsIgnoreCase(parsedUrl.getProtocol())
+                        && !"http".equalsIgnoreCase(parsedUrl.getProtocol())) {
+                    Log.e("UpdateService", "Rejected unsupported download URL: " + fileUrl);
+                    return false;
+                }
+            } catch (MalformedURLException e) {
+                Log.e("UpdateService", "Rejected malformed download URL: " + fileUrl, e);
+                return false;
             }
-            if (normalizedPath.contains(".pvr.") && mGpuType != 3) {
+
+            // Alyn's manifest marks texture variants with gpu=all|dxt|etc|pvr.
+            String gpu = jsonFile.optString("gpu", "all").toLowerCase(Locale.ROOT);
+            if (!"all".equals(gpu)) {
+                if ("dxt".equals(gpu) && mGpuType != 1) continue;
+                if ("etc".equals(gpu) && mGpuType != 2) continue;
+                if ("pvr".equals(gpu) && mGpuType != 3) continue;
+            }
+
+            // Keep compatibility with manifests that encode the GPU profile in the path.
+            if (normalizedPath.contains(".dxt.") && mGpuType != 1) continue;
+            if (normalizedPath.contains(".etc.") && mGpuType != 2) continue;
+            if (normalizedPath.contains(".pvr.") && mGpuType != 3) continue;
+
+            if (mUpdateFiles.contains(relativePath)) {
                 continue;
             }
 
             File file = new File(externalRoot, relativePath);
-            if (!file.exists() || file.length() != fileData.getSize()) {
+            if (!file.isFile() || file.length() != fileData.getSize()) {
                 mUpdateFiles.add(relativePath);
                 mUpdateFilesName.add(name);
+                mUpdateFilesUrl.add(fileUrl);
                 mUpdateFilesSize.add(fileData.getSize());
                 mUpdateGameDataSize += fileData.getSize();
-                Log.d("UpdateService", "Full-data file needs sync: " + relativePath
+                Log.d("UpdateService", "Alyn Full Data file needs sync: " + relativePath
                         + " (" + fileData.getSize() + " bytes)");
             }
         }
-        Log.i("UpdateService", "Full-data sync check found " + mUpdateFiles.size()
+
+        Log.i("UpdateService", "Alyn manifest check added " + mUpdateFiles.size()
                 + " files / " + mUpdateGameDataSize + " bytes for GPU profile " + mGpuType);
         return true;
     }
@@ -389,116 +438,138 @@ public class UpdateService extends Service {
     }
 
 
-    public void startDataUpdating()
-    {
-        ArrayList arrayList = new ArrayList(mUpdateFiles);
-        ArrayList arrayList1 = new ArrayList(mUpdateFilesName);
-        ArrayList arrayList2 = new ArrayList(mUpdateFilesSize);
+    public void startDataUpdating() {
+        ArrayList<String> paths = new ArrayList<>(mUpdateFiles);
+        ArrayList<String> names = new ArrayList<>(mUpdateFilesName);
+        ArrayList<String> urls = new ArrayList<>(mUpdateFilesUrl);
+        ArrayList<Long> sizes = new ArrayList<>(mUpdateFilesSize);
+
         mUpdateFiles.clear();
         mUpdateFilesName.clear();
+        mUpdateFilesUrl.clear();
         mUpdateFilesSize.clear();
-        Ref.IntRef intRef = new Ref.IntRef();
-        intRef.element = 0;
-        Ref.LongRef longRef1 = new Ref.LongRef();
-        longRef1.element = 0;
-        while(intRef.element<arrayList.size()) {
-            mDownloadingStatus = true;
 
-            String string = getExternalFilesDir(null) + "/" + arrayList.get(intRef.element);
-
-            //Log.d("x1y2z", "Update file path: " + string.replace((CharSequence) arrayList1.get(intRef.element), "") + ", Name:" + arrayList1.get(intRef.element));
-
-            File file = new File(getExternalFilesDir(null), string);
-            file.getParentFile().mkdirs();
-            if (file.exists()) {
-                file.delete();
-            }
-
-            Ref.LongRef longRef = new Ref.LongRef();
-            longRef.element = System.currentTimeMillis();
-
-            Log.d("x1y2z", "startDataUpdating " + mUpdateGameDataSize + " " + mUpdateGameDataSizeUpdated);
-
-            mDownloadingStatus = true;
-            PRDownloader.download("https://samp-mobile.shop/files/" + arrayList.get(intRef.element), string.replace(arrayList1.get(intRef.element).toString(), ""), String.valueOf(arrayList1.get(intRef.element))).build().setOnStartOrResumeListener(null).setOnPauseListener(null).setOnCancelListener(null).setOnProgressListener(new OnProgressListener() {
-                @Override
-                public void onProgress(Progress progress) {
-                    mDownloadingStatus = true;
-                    if(System.currentTimeMillis() - longRef.element > 100) {
-                        longRef.element = System.currentTimeMillis();
-                        Message obtain = Message.obtain(mInHandler, 4);
-                        obtain.getData().putString("status", UpdateActivity.UpdateStatus.DownloadGameData.name());
-                        obtain.getData().putBoolean("withProgress", true);
-                        obtain.getData().putLong("current", longRef1.element+progress.currentBytes);
-                        obtain.getData().putLong("total", mUpdateGameDataSize);
-                        obtain.getData().putString("filename", (String)arrayList1.get(intRef.element));
-                        obtain.getData().putLong("totalfiles", arrayList.size());
-                        obtain.getData().putLong("currentfile", intRef.element);
-                        if (mActivityMessenger != null) {
-                            try {
-                                mActivityMessenger.send(obtain);
-                            } catch (RemoteException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-
-                }
-            }).start(new OnDownloadListener() {
-                @Override
-                public void onDownloadComplete() {
-                    mDownloadingStatus = false;
-                    longRef1.element+=(long)arrayList2.get(intRef.element);
-                    Log.d("x1y2z", "completed");
-                }
-
-                @Override
-                public void onError(Error error) {
-                    mDownloadingStatus = false;
-                    mUpdateFiles.add(String.valueOf(arrayList.get(intRef.element)));
-                    Log.d("x1y2z", "error downloadgamedata");
-                }
-            });
-
-            do {
-                try {
-                    Thread.sleep(30);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            } while (mDownloadingStatus);
-
-
-            intRef.element++;
-
-        }
-
-        mDownloadingStatus = false;
-
-        if (!mUpdateFiles.isEmpty()) {
-            // Failed files remain in this list. Do not let the launcher continue with a partial
-            // asset set; the Retry action creates a fresh service and rechecks the full manifest.
-            mGameStatus = UpdateActivity.GameStatus.Unknown;
-            Message failed = Message.obtain(mInHandler, 3);
-            if (mActivityMessenger != null) {
-                try {
-                    mActivityMessenger.send(failed);
-                } catch (RemoteException e) {
-                    Log.e("UpdateService", "Could not report incomplete full-data download", e);
-                }
-            }
+        File externalRoot = getExternalFilesDir(null);
+        if (externalRoot == null || paths.size() != urls.size()
+                || paths.size() != names.size() || paths.size() != sizes.size()) {
+            Log.e("UpdateService", "Alyn download plan is incomplete or external storage is unavailable");
+            mUpdateFiles.addAll(paths);
+            notifyDataDownloadFailed();
             return;
         }
 
-        Log.d("UpdateService", "Full game-data sync completed");
-        Message obtain = Message.obtain(this.mInHandler, 1);
-        obtain.getData().putBoolean("status", true);
-        obtain.replyTo = mMessenger;
+        final long[] completedBytes = {0L};
+        for (int i = 0; i < paths.size(); i++) {
+            final int fileIndex = i;
+            final String relativePath = paths.get(i);
+            final String fileName = names.get(i);
+            final long expectedSize = sizes.get(i);
+            File target = new File(externalRoot, relativePath);
+            File parent = target.getParentFile();
+
+            if (parent == null || (!parent.exists() && !parent.mkdirs()) || target.isDirectory()) {
+                Log.e("UpdateService", "Cannot prepare data file path: " + relativePath);
+                mUpdateFiles.add(relativePath);
+                continue;
+            }
+            if (target.exists() && !target.delete()) {
+                Log.e("UpdateService", "Cannot replace outdated data file: " + relativePath);
+                mUpdateFiles.add(relativePath);
+                continue;
+            }
+
+            mDownloadingStatus = true;
+            final long[] lastProgressAt = {System.currentTimeMillis()};
+            Log.d("UpdateService", "Downloading Alyn data file " + relativePath + " from " + urls.get(i));
+
+            PRDownloader.download(urls.get(i), parent.getAbsolutePath(), target.getName())
+                    .build()
+                    .setOnStartOrResumeListener(null)
+                    .setOnPauseListener(null)
+                    .setOnCancelListener(null)
+                    .setOnProgressListener(new OnProgressListener() {
+                        @Override
+                        public void onProgress(Progress progress) {
+                            mDownloadingStatus = true;
+                            if (System.currentTimeMillis() - lastProgressAt[0] > 100) {
+                                lastProgressAt[0] = System.currentTimeMillis();
+                                Message update = Message.obtain(mInHandler, 4);
+                                update.getData().putString("status", UpdateActivity.UpdateStatus.DownloadGameData.name());
+                                update.getData().putBoolean("withProgress", true);
+                                update.getData().putLong("current", completedBytes[0] + progress.currentBytes);
+                                update.getData().putLong("total", mUpdateGameDataSize);
+                                update.getData().putString("filename", fileName);
+                                update.getData().putLong("totalfiles", paths.size());
+                                update.getData().putLong("currentfile", fileIndex + 1);
+                                update.replyTo = mMessenger;
+                                if (mActivityMessenger != null) {
+                                    try {
+                                        mActivityMessenger.send(update);
+                                    } catch (RemoteException e) {
+                                        Log.e("UpdateService", "Could not report Alyn download progress", e);
+                                    }
+                                }
+                            }
+                        }
+                    })
+                    .start(new OnDownloadListener() {
+                        @Override
+                        public void onDownloadComplete() {
+                            mDownloadingStatus = false;
+                            completedBytes[0] += expectedSize;
+                            Log.d("UpdateService", "Completed Alyn data file " + relativePath);
+                        }
+
+                        @Override
+                        public void onError(Error error) {
+                            mDownloadingStatus = false;
+                            mUpdateFiles.add(relativePath);
+                            Log.e("UpdateService", "Failed to download Alyn data file " + relativePath);
+                        }
+                    });
+
+            while (mDownloadingStatus) {
+                try {
+                    Thread.sleep(30);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    mUpdateFiles.add(relativePath);
+                    mDownloadingStatus = false;
+                    break;
+                }
+            }
+        }
+
+        mDownloadingStatus = false;
+        if (!mUpdateFiles.isEmpty()) {
+            // Never launch with missing files; Retry re-fetches the authoritative manifest.
+            notifyDataDownloadFailed();
+            return;
+        }
+
+        Log.i("UpdateService", "Alyn Full Data sync completed");
+        Message done = Message.obtain(mInHandler, 1);
+        done.getData().putBoolean("status", true);
+        done.replyTo = mMessenger;
         if (mActivityMessenger != null) {
             try {
-                mActivityMessenger.send(obtain);
-            } catch (RemoteException e5) {
-                e5.printStackTrace();
+                mActivityMessenger.send(done);
+            } catch (RemoteException e) {
+                Log.e("UpdateService", "Could not report Alyn Full Data completion", e);
+            }
+        }
+    }
+
+    private void notifyDataDownloadFailed() {
+        mDownloadingStatus = false;
+        mGameStatus = UpdateActivity.GameStatus.Unknown;
+        Message failed = Message.obtain(mInHandler, 3);
+        failed.replyTo = mMessenger;
+        if (mActivityMessenger != null) {
+            try {
+                mActivityMessenger.send(failed);
+            } catch (RemoteException e) {
+                Log.e("UpdateService", "Could not report incomplete Alyn Full Data download", e);
             }
         }
     }

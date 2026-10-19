@@ -85,6 +85,22 @@
             android:text="—/—"
             android:textColor="@color/white"
             android:textSize="14sp" />
+        <Button
+            android:id="@+id/server_connect_inline"
+            android:layout_width="78dp"
+            android:layout_height="34dp"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/ic_buttoncolor"
+            android:fontFamily="@font/montserrat_bold"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:text="Connect"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
+            android:textSize="11sp" />
+
     </LinearLayout>
 
     <View

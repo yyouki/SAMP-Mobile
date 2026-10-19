@@ -240,9 +240,9 @@ public class MainActivity extends AppCompatActivity {
         @NonNull
         @Override
         public Fragment getItem(int position) {
-            if(position == 1)
+            if (position == 0)
                 return new ServersFragment();
-            else if(position == 0)
+            else if (position == 1)
                 return new HomeFragment();
             else if(position == 2)
                 return new SettingsFragment();
