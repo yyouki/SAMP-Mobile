@@ -1,5 +1,6 @@
 package com.samp.mobile.launcher.fragments;
 
+import android.app.Activity;
 import android.os.Bundle;
 import android.transition.Fade;
 import android.util.Log;
