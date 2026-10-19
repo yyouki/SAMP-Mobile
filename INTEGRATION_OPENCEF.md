@@ -32,3 +32,11 @@ This is only a smoke-test page for integration. It is not a final in-game browse
 The workflow compiles unit tests, compiles Android instrumentation-test sources, and attempts to assemble a combined debug APK. Instrumentation tests are compiled but not run on an emulator. The workflow intentionally does not upload the APK as a public artifact because the upstream source tree includes third-party GTA-related binaries/data.
 
 The source README describes the upstream project as educational/research material; a top-level project license granting redistribution was not found in the inspected source branch. Before publishing binaries or distributing a public fork, clarify permission for the client source and for every third-party binary/data asset. Permission to edit this personal fork does not establish distribution rights for those components.
+
+ 
+## Current landscape launcher refinements
+ 
+- The main navigation uses labelled touch tabs (Servers, Community, Settings), with icons matched to each tab.
+- The hosted-server list's manual-add action opens the existing IP/port dialog and saves the server to Favorites instead of presenting a paid-listing notice.
+- Server mode, language, and ping are not invented when the query source does not provide them. Favorite-server mode is set from the actual SA-MP query response when available.
+- Every launcher/game Activity in the manifest is configured for landscape. This has been validated by source inspection; orientation and touch behavior still require a device test.

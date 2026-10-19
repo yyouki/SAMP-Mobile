@@ -68,9 +68,9 @@ import java.util.concurrent.TimeUnit;
 @Obfuscate
 public class MainActivity extends AppCompatActivity {
 
-    public String[] tabTitles = { "Servers", "Info", "Settings" };
-    public int[] tabImages = { R.drawable.ic_mainmenu, R.drawable.ic_server, R.drawable.ic_settingsmenu};
-    public int[] tabSelectedImages = { R.drawable.ic_mainmenu_on, R.drawable.ic_serveron, R.drawable.ic_settingsmenu_on};
+    public String[] tabTitles = { "Servers", "Community", "Settings" };
+    public int[] tabImages = { R.drawable.ic_server, R.drawable.ic_mainmenu, R.drawable.ic_settingsmenu};
+    public int[] tabSelectedImages = { R.drawable.ic_serveron, R.drawable.ic_mainmenu_on, R.drawable.ic_settingsmenu_on};
 
     public static ArrayList<SAMPServerInfo> mServersList = new ArrayList<>();
     public static ArrayList<SAMPServerInfo> mFavoriteServersList = new ArrayList<>();
@@ -121,7 +121,7 @@ public class MainActivity extends AppCompatActivity {
             View inflate = LayoutInflater.from(this).inflate(R.layout.tablayout_item, (ViewGroup) tabLayout, false);
 
             ImageView image = inflate.findViewById(R.id.imageView2);
-            image.setBackgroundResource(tabImages[i]);
+            image.setImageResource(tabImages[i]);
             TextView title = inflate.findViewById(R.id.tab_text);
             title.setText(tabTitles[i]);
             title.setTextColor(i == 0 ? Color.parseColor("#FF0037") : Color.parseColor("#AAA9A9"));
@@ -134,13 +134,13 @@ public class MainActivity extends AppCompatActivity {
                 public void onTabSelected(TabLayout.Tab tab) {
                     getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
                     pa.setCurrentItem(tab.getPosition(), true);
-                    ((ImageView)tab.getCustomView().findViewById(R.id.imageView2)).setBackgroundResource(tabSelectedImages[tab.getPosition()]);
+                    ((ImageView)tab.getCustomView().findViewById(R.id.imageView2)).setImageResource(tabSelectedImages[tab.getPosition()]);
                     ((TextView)tab.getCustomView().findViewById(R.id.tab_text)).setTextColor(Color.parseColor("#FF0037"));
                 }
 
                 @Override
                 public void onTabUnselected(TabLayout.Tab tab) {
-                    ((ImageView)tab.getCustomView().findViewById(R.id.imageView2)).setBackgroundResource(tabImages[tab.getPosition()]);
+                    ((ImageView)tab.getCustomView().findViewById(R.id.imageView2)).setImageResource(tabImages[tab.getPosition()]);
                     ((TextView)tab.getCustomView().findViewById(R.id.tab_text)).setTextColor(Color.parseColor("#AAA9A9"));
                 }
 
@@ -151,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
             });
 
         }
-        ((ImageView)tabLayout.getTabAt(0).getCustomView().findViewById(R.id.imageView2)).setBackgroundResource(tabSelectedImages[0]);
+        ((ImageView)tabLayout.getTabAt(0).getCustomView().findViewById(R.id.imageView2)).setImageResource(tabSelectedImages[0]);
 
         getServersInfo();
         getFavoriteServersInfo();
@@ -252,7 +252,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                     String[] info = sampQuery.mo7164b();
                     SAMPServerInfo queriedServer = new SAMPServerInfo(intValue, intValue, info[3], getFavoriteServerList().get(intValue).getAddress(), getFavoriteServerList().get(intValue).getPort(), Integer.parseInt(info[1]), Integer.parseInt(info[2]), Integer.parseInt(info[0]), 0, 0, info[5]);
-                    queriedServer.setServerMode(info[4]);
+                    queriedServer.setServerMode(info[4] == null || info[4].trim().isEmpty() ? "—" : info[4].trim());
                     getFavoriteServerList().set(intValue, queriedServer);
                     DatagramSocket datagramSocket = sampQuery.f7277a;
                     if (datagramSocket != null) {
