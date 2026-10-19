@@ -66,6 +66,14 @@ public class ServerPagesItemFragment extends Fragment {
                 addServerDialog.show();
             });
         }
+
+        View connectServerButton = view.findViewById(R.id.buttonConnectServer);
+        if (connectServerButton != null) {
+            connectServerButton.setOnClickListener(ignored -> {
+                ServerAddFragment connectDialog = new ServerAddFragment(activity, adapter, true);
+                connectDialog.show();
+            });
+        }
         return view;
     }
 }

@@ -19,6 +19,7 @@ import com.joom.paranoid.Obfuscate;
 import com.samp.mobile.R;
 import com.samp.mobile.launcher.MainActivity;
 import com.samp.mobile.launcher.adapters.FavouriteServerAdapter;
+import com.samp.mobile.launcher.adapters.FavouriteServerInformationFragment;
 import com.samp.mobile.launcher.adapters.ServerAdapter;
 import com.samp.mobile.launcher.data.FavoritesInfo;
 import com.samp.mobile.launcher.util.ButtonAnimator;
@@ -36,12 +37,17 @@ public class ServerAddFragment extends Dialog {
 
     FavouriteServerAdapter mFavouriteServerAdapter;
     Activity activity;
+    private final boolean connectAfterAdd;
 
-    public ServerAddFragment(Activity a, FavouriteServerAdapter adapter)
-    {
+    public ServerAddFragment(Activity a, FavouriteServerAdapter adapter) {
+        this(a, adapter, false);
+    }
+
+    public ServerAddFragment(Activity a, FavouriteServerAdapter adapter, boolean connectAfterAdd) {
         super(a);
         activity = a;
         mFavouriteServerAdapter = adapter;
+        this.connectAfterAdd = connectAfterAdd;
     }
 
     @Override
@@ -60,41 +66,46 @@ public class ServerAddFragment extends Dialog {
                 Matcher matcher = compile.matcher(editText.getText().toString());
                 Matcher matcher2 = compile2.matcher(editText.getText().toString());
                 if (matcher.find() || matcher2.find()) {
-                    if (!editText.getText().toString().contains(":")) {
-                        editText.setText(editText.getText().toString() + ":7777");
+                    String endpoint = editText.getText().toString().trim();
+                    if (!endpoint.contains(":")) {
+                        endpoint = endpoint + ":7777";
                     }
-                    /*try {
-                        BufferedReader bufferedReader = new BufferedReader(new FileReader(mFavouriteServerAdapter.mServerFavouriteFile));
-                        boolean z = false;
-                        while (true) {
-                            String readLine = bufferedReader.readLine();
-                            if (readLine == null) {
-                                break;
-                            } else if (editText.getText().toString().equals(readLine)) {
-                                Toast.makeText(activity, "This server is already added", Toast.LENGTH_LONG).show();
-                                z = true;
-                            }
-                        }
-                        if (!z) {
-                            BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(mFavouriteServerAdapter.mServerFavouriteFile, true));
-                            bufferedWriter.write(editText.getText().toString() + System.getProperty("line.separator"));
-                            bufferedWriter.close();
-
-                            mFavouriteServerAdapter.mServersInfo.add(new SAMPServerInfo(0,0,"Loading...", editText.getText().toString().split(":")[0], Integer.parseInt(editText.getText().toString().split(":")[1]), 0,0,0,0,0,"English"));
-                            mFavouriteServerAdapter.refreshServers();
-                        }
-                        bufferedReader.close();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }*/
-                    if (FavoritesInfo.IsServerExists(getContext(), 0, 0, editText.getText().toString().split(":")[0], Integer.parseInt(editText.getText().toString().split(":")[1]), false)) {
-                        Toast.makeText(getContext(), "This server has been already added!", Toast.LENGTH_SHORT).show();
+                    String[] endpointParts = endpoint.split(":", 2);
+                    String serverAddress = endpointParts[0].trim();
+                    final int serverPort;
+                    try {
+                        serverPort = Integer.parseInt(endpointParts[1].trim());
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(activity, "Invalid port. Use a port from 1 to 65535.", Toast.LENGTH_LONG).show();
                         return;
                     }
-                    FavoritesInfo.AddServer(getContext(), 0, 0, editText.getText().toString().split(":")[0], Integer.parseInt(editText.getText().toString().split(":")[1]));
-                    FavoritesInfo.Save(getContext());
-                    ((MainActivity)activity).getFavoriteServerList().add(new SAMPServerInfo(0,0,"Loading...", editText.getText().toString().split(":")[0], Integer.parseInt(editText.getText().toString().split(":")[1]), 0,0,0,0,0,"—"));
-                    ((MainActivity)activity).refreshFavoriteServers();
+                    if (serverPort < 1 || serverPort > 65535) {
+                        Toast.makeText(activity, "Invalid port. Use a port from 1 to 65535.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    boolean serverExists = FavoritesInfo.IsServerExists(
+                            getContext(), 0, 0, serverAddress, serverPort, false);
+                    if (serverExists) {
+                        if (!connectAfterAdd) {
+                            Toast.makeText(getContext(), "This server has been already added!", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                    } else {
+                        FavoritesInfo.AddServer(getContext(), 0, 0, serverAddress, serverPort);
+                        FavoritesInfo.Save(getContext());
+                        ((MainActivity) activity).getFavoriteServerList().add(
+                                new SAMPServerInfo(0, 0, "Loading...", serverAddress, serverPort,
+                                        0, 0, 0, 0, 0, "—"));
+                        ((MainActivity) activity).refreshFavoriteServers();
+                    }
+
+                    if (connectAfterAdd) {
+                        SAMPServerInfo targetServer = new SAMPServerInfo(
+                                0, 0, serverAddress, serverAddress, serverPort,
+                                0, 0, 0, 0, 0, "—");
+                        FavouriteServerInformationFragment.connectToServer(activity, targetServer);
+                    }
                 } else {
                     Toast.makeText(activity, "Invalid ip and port. (Use IP:PORT or IP)", Toast.LENGTH_LONG).show();
                 }
