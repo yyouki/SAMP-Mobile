@@ -45,7 +45,6 @@ This is the implementation backlog for the private `opencef-integration-landscap
 - Audit AML, MoonLoader, and CLEO support separately for 32-bit `armeabi-v7a` and 64-bit `arm64-v8a`.
 - Verify each loader's source/version, license, JNI/native ABI, Android 16 behavior, injection/initialization order, and interaction with the client before enabling it.
 - Add explicit Full Data / Lite Data profiles with checks for required files, free space, rollback, and a clear data-version indicator.
-- Add optional weapon-icon display settings for in-game nametags and kill-feed only if the server/client protocol and native UI render hooks expose the required weapon IDs reliably.
 - Exit criteria: each loader/profile has an isolated smoke test, documented unsupported combinations, and no claim of cross-ABI support without build evidence.
 
 ## Phase 6 — Release gates
