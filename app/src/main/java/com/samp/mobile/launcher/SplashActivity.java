@@ -178,45 +178,28 @@ public class SplashActivity extends AppCompatActivity {
                 Log.i("x1y2z", "gameStatus = " + valueOf2);
 
                 if (valueOf2 == UpdateActivity.GameStatus.UpdateRequired) {
-                    if(!new SharedPreferenceCore().getBoolean(SplashActivity.this, "MODIFIED_DATA")) {
-                        if(!isFinishing()) {
-                            builder.setMessage("Game data update found!\nDo you want to update?")
-                                    .setCancelable(false)
-                                    .setPositiveButton("Update", new DialogInterface.OnClickListener() {
-                                        public void onClick(DialogInterface dialog, int id) {
-                                            finish();
-                                            Intent intent = new Intent(SplashActivity.this, UpdateActivity.class);
-                                            intent.putExtra("mode", UpdateActivity.UpdateMode.GameDataUpdate.name());
-                                            startActivity(intent);
-                                            finish();
-                                            dialog.dismiss();
-                                        }
-                                    })
-                                    .setNegativeButton("No", new DialogInterface.OnClickListener() {
-                                        @Override
-                                        public void onClick(DialogInterface dialogInterface, int i) {
-                                            startActivity(new Intent(SplashActivity.this, MainActivity.class));
-                                            finish();
-                                            dialogInterface.dismiss();
-                                        }
-                                    });
-                            AlertDialog alert = builder.create();
-                            alert.setTitle("Update");
-                            alert.show();
+                    if (!new SharedPreferenceCore().getBoolean(SplashActivity.this, "MODIFIED_DATA")) {
+                        if (!isFinishing()) {
+                            // Download missing game data inside this app. Do not ask Android
+                            // to install a second update.apk with a potentially different
+                            // signing certificate.
+                            Intent intent = new Intent(SplashActivity.this, UpdateActivity.class);
+                            intent.putExtra("mode", UpdateActivity.UpdateMode.GameDataUpdate.name());
+                            startActivity(intent);
+                            finish();
                         }
-                    }
-                    else {
+                    } else {
                         startActivity(new Intent(SplashActivity.this, MainActivity.class));
                         finish();
                     }
-                }
-                else if (valueOf2 == UpdateActivity.GameStatus.GameUpdateRequired) {
+                } else if (valueOf2 == UpdateActivity.GameStatus.GameUpdateRequired) {
+                    // Legacy service status fallback: treat it as a data sync, never as an
+                    // instruction to install a separate launcher APK.
                     Intent intent = new Intent(SplashActivity.this, UpdateActivity.class);
-                    intent.putExtra("mode", UpdateActivity.UpdateMode.GameUpdate.name());
+                    intent.putExtra("mode", UpdateActivity.UpdateMode.GameDataUpdate.name());
                     startActivity(intent);
                     finish();
-                }
-                else {
+                } else {
                     startActivity(new Intent(SplashActivity.this, MainActivity.class));
                     finish();
                 }
