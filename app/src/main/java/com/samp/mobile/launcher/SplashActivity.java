@@ -34,7 +34,6 @@ import com.joom.paranoid.Obfuscate;
 import com.samp.mobile.R;
 import com.samp.mobile.launcher.config.Config;
 import com.samp.mobile.launcher.util.SharedPreferenceCore;
-import com.samp.mobile.launcher.util.SignatureChecker;
 import com.samp.mobile.launcher.util.Util;
 
 import java.io.File;
@@ -75,84 +74,78 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
 
-        if(!SignatureChecker.isSignatureValid(this, getPackageName()))
-        {
-            ((TextView)findViewById(R.id.launcher_orig_text)).setText("Using not original launcher");
+        // Initialize launcher state before onResume. This fork is signed with its own
+        // debug key, so the upstream signature check would reject its package signature.
+        Config.currentContext = this;
+        prefs = getSharedPreferences("com.samp.mobile", MODE_PRIVATE);
+        builder = new AlertDialog.Builder(this);
+
+        if (!Util.isNetworkConnected(Config.currentContext)) {
+            builder.setMessage("There is no internet connection.\n" +
+                            "Please exit, connect to the internet and reenter the launcher")
+                    .setCancelable(false)
+                    .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int id) {
+                            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(false);
+
+                            finishAndRemoveTask();
+                            System.exit(0);
+                            dialog.dismiss();
+                        }
+                    })
+                    .setNegativeButton("", null);
+            AlertDialog alert = builder.create();
+            alert.setTitle("Info");
+            alert.show();
+            return;
         }
-        else {
-            Config.currentContext = this;
 
-            prefs = getSharedPreferences("com.samp.mobile", MODE_PRIVATE);
+        mInHandler = new IncomingHandler();
+        mMessenger = new Messenger(mInHandler);
 
-            builder = new AlertDialog.Builder(this);
+        GLSurfaceView.Renderer mGlRenderer = new GLSurfaceView.Renderer() {
+            @Override
+            public void onSurfaceCreated(GL10 gl10, EGLConfig eglConfig) {
+                UpdateActivity.eGPUType egputype;
+                String glGetString = gl10.glGetString(GL10.GL_EXTENSIONS);
+                String glGetString2 = gl10.glGetString(GL10.GL_EXTENSIONS);
+                if (glGetString2.contains("GL_IMG_texture_compression_pvrtc")) {
+                    egputype = UpdateActivity.eGPUType.PVR;
+                    mGpuType = 3;
+                } else if (glGetString2.contains("GL_EXT_texture_compression_dxt1") || glGetString2.contains("GL_EXT_texture_compression_s3tc") || glGetString2.contains("GL_AMD_compressed_ATC_texture")) {
+                    egputype = UpdateActivity.eGPUType.DXT;
+                    mGpuType = 1;
+                } else {
+                    egputype = UpdateActivity.eGPUType.ETC;
+                    mGpuType = 2;
+                }
+                Log.e("x1y2z", "GPU name: " + glGetString);
+                Log.e("x1y2z", "GPU type: " + egputype.name());
 
-            if (!Util.isNetworkConnected(Config.currentContext)) {
-                builder.setMessage("There is no internet connection.\n" +
-                                "Please exit, connect to the internet and reenter the launcher")
-                        .setCancelable(false)
-                        .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int id) {
-                                FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(false);
-
-                                finishAndRemoveTask();
-                                System.exit(0);
-                                dialog.dismiss();
-                            }
-                        })
-                        .setNegativeButton("", null);
-                AlertDialog alert = builder.create();
-                alert.setTitle("Info");
-                alert.show();
-                return;
+                if (isPermissionsGranted()) {
+                    mIsBind = bindService(new Intent(SplashActivity.this, UpdateService.class), mConnection, Context.BIND_AUTO_CREATE);
+                } else {
+                    ActivityCompat.requestPermissions(SplashActivity.this,
+                            permissions,
+                            1);
+                }
             }
 
-            mInHandler = new IncomingHandler();
-            mMessenger = new Messenger(mInHandler);
+            @Override
+            public void onSurfaceChanged(GL10 gl10, int i, int i1) {
 
-            GLSurfaceView.Renderer mGlRenderer = new GLSurfaceView.Renderer() {
-                @Override
-                public void onSurfaceCreated(GL10 gl10, EGLConfig eglConfig) {
-                    UpdateActivity.eGPUType egputype;
-                    String glGetString = gl10.glGetString(GL10.GL_EXTENSIONS);
-                    String glGetString2 = gl10.glGetString(GL10.GL_EXTENSIONS);
-                    if (glGetString2.contains("GL_IMG_texture_compression_pvrtc")) {
-                        egputype = UpdateActivity.eGPUType.PVR;
-                        mGpuType = 3;
-                    } else if (glGetString2.contains("GL_EXT_texture_compression_dxt1") || glGetString2.contains("GL_EXT_texture_compression_s3tc") || glGetString2.contains("GL_AMD_compressed_ATC_texture")) {
-                        egputype = UpdateActivity.eGPUType.DXT;
-                        mGpuType = 1;
-                    } else {
-                        egputype = UpdateActivity.eGPUType.ETC;
-                        mGpuType = 2;
-                    }
-                    Log.e("x1y2z", "GPU name: " + glGetString);
-                    Log.e("x1y2z", "GPU type: " + egputype.name());
+            }
 
-                    if (isPermissionsGranted()) {
-                        mIsBind = bindService(new Intent(SplashActivity.this, UpdateService.class), mConnection, Context.BIND_AUTO_CREATE);
-                    } else {
-                        ActivityCompat.requestPermissions(SplashActivity.this,
-                                permissions,
-                                1);
-                    }
-                }
+            @Override
+            public void onDrawFrame(GL10 gl10) {
 
-                @Override
-                public void onSurfaceChanged(GL10 gl10, int i, int i1) {
+            }
+        };
 
-                }
-
-                @Override
-                public void onDrawFrame(GL10 gl10) {
-
-                }
-            };
-
-            ConstraintLayout gpuLayout = findViewById(R.id.gpu);
-            GLSurfaceView mGlSurfaceView = new GLSurfaceView(this);
-            mGlSurfaceView.setRenderer(mGlRenderer);
-            gpuLayout.addView(mGlSurfaceView);
-        }
+        ConstraintLayout gpuLayout = findViewById(R.id.gpu);
+        GLSurfaceView mGlSurfaceView = new GLSurfaceView(this);
+        mGlSurfaceView.setRenderer(mGlRenderer);
+        gpuLayout.addView(mGlSurfaceView);
     }
 
     public class IncomingHandler extends Handler {
