@@ -441,9 +441,9 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus && new SharedPreferenceCore().getBoolean(
-                getApplicationContext(), "FULLSCREEN_MODE", true)) {
-            applyFullscreenMode(true);
+        if (hasFocus) {
+            applyFullscreenMode(new SharedPreferenceCore().getBoolean(
+                    getApplicationContext(), "FULLSCREEN_MODE", true));
         }
     }
 
