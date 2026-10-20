@@ -62,10 +62,7 @@ public class SharedPreferenceCore {
 
     public int getInt(Context context, String str, int defaultValue) {
         main(context);
-        if (mSharedPreference.contains(str)) {
-            return mSharedPreference.getInt(str, defaultValue);
-        }
-        return 0;
+        return mSharedPreference.getInt(str, defaultValue);
     }
 
     public boolean getBoolean(Context context, String str) {
