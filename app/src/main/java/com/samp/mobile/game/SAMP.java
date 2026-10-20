@@ -19,6 +19,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.view.PixelCopy;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
 
@@ -92,6 +93,9 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
     private void showTab() {
         runOnUiThread(() -> {
             ensureScoreboardOverlay();
+            if (scoreboardOverlay == null) {
+                return;
+            }
             renderScoreboard();
             scoreboardOverlay.setVisibility(View.VISIBLE);
         });
