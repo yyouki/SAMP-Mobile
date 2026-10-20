@@ -11,6 +11,7 @@ import com.joom.paranoid.Obfuscate;
 import com.samp.mobile.game.ui.AttachEdit;
 import com.samp.mobile.game.ui.CustomKeyboard;
 import com.samp.mobile.game.ui.LoadingScreen;
+import com.samp.mobile.game.ui.PcScoreboardOverlay;
 import com.samp.mobile.game.ui.dialog.DialogManager;
 import com.samp.mobile.launcher.util.SharedPreferenceCore;
 import com.samp.mobile.launcher.util.SignatureChecker;
@@ -29,6 +30,7 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
 
     private AttachEdit mAttachEdit;
     private LoadingScreen mLoadingScreen;
+    private PcScoreboardOverlay mScoreboardOverlay;
     private volatile ActivityBrowserOverlay openCefOverlay;
 
     public native void sendDialogResponse(int i, int i2, int i3, byte[] str);
@@ -37,24 +39,41 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
         return instance;
     }
 
+    // These callback signatures are retained for the native client's scoreboard bridge.
     private void showTab()
     {
-
+        runOnUiThread(() -> {
+            if (mScoreboardOverlay != null) {
+                mScoreboardOverlay.show();
+            }
+        });
     }
 
     private void hideTab()
     {
-
+        runOnUiThread(() -> {
+            if (mScoreboardOverlay != null) {
+                mScoreboardOverlay.hide();
+            }
+        });
     }
 
     private void setTab(int id, String name, int score, int ping)
     {
-
+        runOnUiThread(() -> {
+            if (mScoreboardOverlay != null) {
+                mScoreboardOverlay.setPlayer(id, name, score, ping);
+            }
+        });
     }
 
     private void clearTab()
     {
-
+        runOnUiThread(() -> {
+            if (mScoreboardOverlay != null) {
+                mScoreboardOverlay.clearPlayers();
+            }
+        });
     }
 
     private void showLoadingScreen()
@@ -188,6 +207,7 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
         mAttachEdit = new AttachEdit(this);
 
         mLoadingScreen = new LoadingScreen(this);
+        mScoreboardOverlay = new PcScoreboardOverlay(this);
 
         instance = this;
 
@@ -240,14 +260,22 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
 
     @Override
     public void onBackPressed() {
+        if (mScoreboardOverlay != null && mScoreboardOverlay.isVisible()) {
+            mScoreboardOverlay.hide();
+            return;
+        }
         super.onBackPressed();
         onEventBackPressed();
     }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if(keyCode == KeyEvent.KEYCODE_BACK)
-        {
+        if (keyCode == KeyEvent.KEYCODE_BACK
+                && mScoreboardOverlay != null && mScoreboardOverlay.isVisible()) {
+            mScoreboardOverlay.hide();
+            return true;
+        }
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
             onEventBackPressed();
         }
         return super.onKeyDown(keyCode, event);
