@@ -46,39 +46,7 @@
             android:textSize="10sp" />
     </LinearLayout>
 
-    <Button
-        android:id="@+id/buttonServer"
-        android:layout_width="132dp"
-        android:layout_height="40dp"
-        android:layout_marginStart="12dp"
-        android:layout_marginEnd="4dp"
-        android:layout_marginBottom="8dp"
-        android:background="@drawable/ic_buttoncolor"
-        android:fontFamily="@font/montserrat_bold"
-        android:text="ADD SERVER"
-        android:textColor="@color/white"
-        android:textSize="11sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/buttonConnectServer"
-        app:layout_constraintHorizontal_chainStyle="packed"
-        app:layout_constraintStart_toStartOf="parent" />
 
-    <Button
-        android:id="@+id/buttonConnectServer"
-        android:layout_width="160dp"
-        android:layout_height="40dp"
-        android:layout_marginStart="4dp"
-        android:layout_marginEnd="12dp"
-        android:layout_marginBottom="8dp"
-        android:background="@drawable/ic_buttoncolor"
-        android:fontFamily="@font/montserrat_bold"
-        android:text="CONNECT TO SERVER"
-        android:textAllCaps="false"
-        android:textColor="@color/white"
-        android:textSize="10sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/buttonServer" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/server_recycler"
@@ -87,8 +55,59 @@
         android:clipToPadding="false"
         android:paddingBottom="4dp"
         app:layout_constraintTop_toBottomOf="@id/server_list_header"
-        app:layout_constraintBottom_toTopOf="@id/buttonServer"
+        app:layout_constraintBottom_toTopOf="@id/server_actions"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
+
+
+    <LinearLayout
+        android:id="@+id/server_actions"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="8dp"
+        android:background="@color/colorPrimary"
+        android:elevation="4dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <Button
+            android:id="@+id/buttonServer"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="0.9"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"
+            android:minWidth="0dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:background="@drawable/ic_buttoncolor"
+            android:fontFamily="@font/montserrat_bold"
+            android:text="ADD SERVER"
+            android:textColor="@color/white"
+            android:textSize="11sp" />
+
+        <Button
+            android:id="@+id/buttonConnectServer"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1.1"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"
+            android:minWidth="0dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:background="@drawable/ic_buttoncolor"
+            android:fontFamily="@font/montserrat_bold"
+            android:text="CONNECT TO SERVER"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
+            android:textSize="10sp" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

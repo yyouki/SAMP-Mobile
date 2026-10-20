@@ -47,7 +47,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/montserrat_bold"
-            android:text="LANDSCAPE"
+            android:text="AUTO ROTATE"
             android:textColor="@color/gray"
             android:textSize="10sp" />
     </LinearLayout>

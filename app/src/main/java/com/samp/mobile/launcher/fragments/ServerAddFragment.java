@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
@@ -58,8 +59,10 @@ public class ServerAddFragment extends Dialog {
         EditText editText = findViewById(R.id.server_host);
         ImageView mClose = findViewById(R.id.server_close);
 
-        findViewById(R.id.server_add).setOnTouchListener(new ButtonAnimator(getContext(), findViewById(R.id.server_add)));
-        findViewById(R.id.server_add).setOnClickListener(new View.OnClickListener() {
+        Button actionButton = findViewById(R.id.server_add);
+        actionButton.setText(connectAfterAdd ? "Connect" : "Add");
+        actionButton.setOnTouchListener(new ButtonAnimator(getContext(), actionButton));
+        actionButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 Pattern compile = Pattern.compile("^(((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}|localhost|(([0-9]{1,3}\\.){3})[0-9]{1,3}):[0-9]{1,5}$");
                 Pattern compile2 = Pattern.compile("^(((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}|localhost|(([0-9]{1,3}\\.){3})[0-9]{1,3})$");
