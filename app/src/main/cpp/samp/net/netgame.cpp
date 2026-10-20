@@ -537,27 +537,31 @@ void CNetGame::Packet_AuthKey(Packet *pkt)
 // 0.3.7
 void CNetGame::Packet_ConnectAttemptFailed(Packet *pkt)
 {
-	if (pUI) pUI->chat()->addDebugMessage("The server didn't respond. Retrying..");
-	if (pAudioStream) { //add new
+	const bool autoReconnect = !pSettings || pSettings->Get().bAutoReconnect;
+	if (pUI) {
+		pUI->chat()->addDebugMessage(autoReconnect
+				? "The server didn't respond. Retrying.."
+				: "The server didn't respond. Auto reconnect is disabled.");
+	}
+	if (pAudioStream) {
 		pAudioStream->Stop(true);
 	}
-	SpeakerList::Hide(); //add new
+	SpeakerList::Hide();
 	MicroIcon::Hide();
-	SetGameState(GAMESTATE_WAIT_CONNECT);
-
-	//SpeakerList::Hide();
-	//MicroIcon::Hide();
+	SetGameState(autoReconnect ? GAMESTATE_WAIT_CONNECT : GAMESTATE_DISCONNECTED);
 }
 // 0.3.7
 void CNetGame::Packet_NoFreeIncomingConnections(Packet *pkt)
 {
-	if(pUI) pUI->chat()->addDebugMessage("The server is full. Retrying...");
-	SpeakerList::Hide(); //addnew
+	const bool autoReconnect = !pSettings || pSettings->Get().bAutoReconnect;
+	if (pUI) {
+		pUI->chat()->addDebugMessage(autoReconnect
+				? "The server is full. Retrying..."
+				: "The server is full. Auto reconnect is disabled.");
+	}
+	SpeakerList::Hide();
 	MicroIcon::Hide();
-	SetGameState(GAMESTATE_WAIT_CONNECT);
-
-	//SpeakerList::Hide();
-	//MicroIcon::Hide();
+	SetGameState(autoReconnect ? GAMESTATE_WAIT_CONNECT : GAMESTATE_DISCONNECTED);
 }
 // 0.3.7
 void CNetGame::Packet_DisconnectionNotification(Packet *pkt)
@@ -645,7 +649,12 @@ void CNetGame::Packet_ConnectionLost(Packet *pkt)
 		m_pRakClient->Disconnect(0);
 	}
 
-	if (pUI) pUI->chat()->addDebugMessage("Lost connection to the server. Reconnecting..");
+	const bool autoReconnect = !pSettings || pSettings->Get().bAutoReconnect;
+	if (pUI) {
+		pUI->chat()->addDebugMessage(autoReconnect
+				? "Lost connection to the server. Reconnecting.."
+				: "Lost connection to the server. Auto reconnect is disabled.");
+	}
 	ShutdownForGameModeRestart();
 
 	CPlayerPool *pPlayerPool = GetPlayerPool();
@@ -661,7 +670,7 @@ void CNetGame::Packet_ConnectionLost(Packet *pkt)
 		pAudioStream->Stop(true);
 	}
 
-	SetGameState(GAMESTATE_WAIT_CONNECT);
+	SetGameState(autoReconnect ? GAMESTATE_WAIT_CONNECT : GAMESTATE_DISCONNECTED);
 
 	SpeakerList::Hide();
 	MicroIcon::Hide();
