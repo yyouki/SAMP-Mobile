@@ -461,23 +461,35 @@ public class SettingsFragment extends Fragment {
         mMonetSwitch.setChecked(new SharedPreferenceCore().getBoolean(requireContext().getApplicationContext(), "MLOADER"));
         autoCompleteTextView.setSelection(new SharedPreferenceCore().getInt(requireContext().getApplicationContext(), "VERSION"));
 
-        int fps = new SharedPreferenceCore().getInt(getContext(), "FPS_LIMIT");
+        // Defaults must match the seek-bar choices on a fresh install.
+        SharedPreferenceCore preferences = new SharedPreferenceCore();
+        int fps = preferences.getInt(requireContext(), "FPS_LIMIT", 60);
         switch (fps)
         {
             case 30: mFPSSeekBar.setProgress(0); break;
             case 60: mFPSSeekBar.setProgress(1); break;
             case 90: mFPSSeekBar.setProgress(2); break;
             case 120: mFPSSeekBar.setProgress(3); break;
+            default:
+                fps = 60;
+                preferences.setInt(requireContext(), "FPS_LIMIT", fps);
+                mFPSSeekBar.setProgress(1);
+                break;
         }
         mFPSText.setText(String.valueOf(fps));
 
-        int message = new SharedPreferenceCore().getInt(getContext(), "MESSAGE_COUNT");
+        int message = preferences.getInt(requireContext(), "MESSAGE_COUNT", 9);
         switch (message)
         {
             case 6: mMessagesSeekBar.setProgress(0); break;
             case 9: mMessagesSeekBar.setProgress(1); break;
             case 12: mMessagesSeekBar.setProgress(2); break;
             case 15: mMessagesSeekBar.setProgress(3); break;
+            default:
+                message = 9;
+                preferences.setInt(requireContext(), "MESSAGE_COUNT", message);
+                mMessagesSeekBar.setProgress(1);
+                break;
         }
         mMessagesText.setText(String.valueOf(message));
     }
