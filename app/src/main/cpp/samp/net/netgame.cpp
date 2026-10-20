@@ -274,7 +274,8 @@ void CNetGame::UpdateNetwork()
 
             case ID_CONNECTION_BANNED:
                 Packet_ConnectionBanned(pkt);
-                SetGameState(GAMESTATE_WAIT_CONNECT);
+                // A ban is not a transient connection failure; never retry it automatically.
+                SetGameState(GAMESTATE_DISCONNECTED);
                 break;
 
             case ID_INVALID_PASSWORD:
