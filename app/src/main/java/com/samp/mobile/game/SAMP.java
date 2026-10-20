@@ -12,6 +12,11 @@ import android.os.Looper;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.Gravity;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
 import android.view.PixelCopy;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
@@ -24,6 +29,8 @@ import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -58,30 +65,161 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
     });
     private boolean screenshotInProgress = false;
 
+    // The native SA-MP bridge calls these scoreboard callbacks while TAB is held.
+    // Keep the player data on the UI thread and render it as a lightweight overlay.
+    private FrameLayout scoreboardOverlay;
+    private LinearLayout scoreboardRows;
+    private final Map<Integer, ScoreboardPlayer> scoreboardPlayers = new LinkedHashMap<>();
+
+    private static final class ScoreboardPlayer {
+        final String name;
+        final int score;
+        final int ping;
+
+        ScoreboardPlayer(String name, int score, int ping) {
+            this.name = name == null ? "" : name;
+            this.score = score;
+            this.ping = ping;
+        }
+    }
+
     public native void sendDialogResponse(int i, int i2, int i3, byte[] str);
 
     public static SAMP getInstance() {
         return instance;
     }
 
-    private void showTab()
-    {
-
+    private void showTab() {
+        runOnUiThread(() -> {
+            ensureScoreboardOverlay();
+            renderScoreboard();
+            scoreboardOverlay.setVisibility(View.VISIBLE);
+        });
     }
 
-    private void hideTab()
-    {
-
+    private void hideTab() {
+        runOnUiThread(() -> {
+            if (scoreboardOverlay != null) {
+                scoreboardOverlay.setVisibility(View.GONE);
+            }
+        });
     }
 
-    private void setTab(int id, String name, int score, int ping)
-    {
-
+    private void setTab(int id, String name, int score, int ping) {
+        runOnUiThread(() -> {
+            scoreboardPlayers.put(id, new ScoreboardPlayer(name, score, ping));
+            if (scoreboardRows != null) {
+                renderScoreboard();
+            }
+        });
     }
 
-    private void clearTab()
-    {
+    private void clearTab() {
+        runOnUiThread(() -> {
+            scoreboardPlayers.clear();
+            if (scoreboardRows != null) {
+                scoreboardRows.removeAllViews();
+            }
+        });
+    }
 
+    private void ensureScoreboardOverlay() {
+        if (scoreboardOverlay != null) {
+            return;
+        }
+
+        FrameLayout content = findViewById(android.R.id.content);
+        if (content == null) {
+            return;
+        }
+
+        scoreboardOverlay = new FrameLayout(this);
+        scoreboardOverlay.setVisibility(View.GONE);
+        scoreboardOverlay.setClickable(true);
+        scoreboardOverlay.setFocusable(true);
+        scoreboardOverlay.setBackgroundColor(0x99000000);
+
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(16), dp(12), dp(16), dp(12));
+        panel.setBackgroundColor(0xF01B1E22);
+
+        TextView title = new TextView(this);
+        title.setText("PLAYERS");
+        title.setTextColor(0xFFFFFFFF);
+        title.setTextSize(18);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, dp(8));
+        panel.addView(title, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        LinearLayout headings = new LinearLayout(this);
+        headings.setOrientation(LinearLayout.HORIZONTAL);
+        headings.addView(scoreboardCell("Name", 1.0f, true));
+        headings.addView(scoreboardCell("Score", 0.22f, true));
+        headings.addView(scoreboardCell("Ping", 0.22f, true));
+        panel.addView(headings, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        View divider = new View(this);
+        divider.setBackgroundColor(0xFF555B63);
+        LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
+        dividerParams.topMargin = dp(4);
+        dividerParams.bottomMargin = dp(4);
+        panel.addView(divider, dividerParams);
+
+        ScrollView scroll = new ScrollView(this);
+        scoreboardRows = new LinearLayout(this);
+        scoreboardRows.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(scoreboardRows, new ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        panel.addView(scroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(300)));
+
+        FrameLayout.LayoutParams panelParams = new FrameLayout.LayoutParams(
+                (int) (getResources().getDisplayMetrics().widthPixels * 0.82f),
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
+        scoreboardOverlay.addView(panel, panelParams);
+        content.addView(scoreboardOverlay, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private void renderScoreboard() {
+        if (scoreboardRows == null) {
+            return;
+        }
+        scoreboardRows.removeAllViews();
+        for (Map.Entry<Integer, ScoreboardPlayer> entry : scoreboardPlayers.entrySet()) {
+            ScoreboardPlayer player = entry.getValue();
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(0, dp(5), 0, dp(5));
+            row.addView(scoreboardCell(player.name, 1.0f, false));
+            row.addView(scoreboardCell(String.valueOf(player.score), 0.22f, false));
+            row.addView(scoreboardCell(String.valueOf(player.ping), 0.22f, false));
+            scoreboardRows.addView(row, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+    }
+
+    private TextView scoreboardCell(String text, float weight, boolean heading) {
+        TextView cell = new TextView(this);
+        cell.setText(text);
+        cell.setTextColor(heading ? 0xFFBFC5CC : 0xFFFFFFFF);
+        cell.setTextSize(heading ? 12 : 13);
+        cell.setSingleLine(true);
+        cell.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        cell.setGravity(heading ? Gravity.CENTER : Gravity.CENTER_VERTICAL);
+        cell.setPadding(dp(4), dp(2), dp(4), dp(2));
+        cell.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, weight));
+        return cell;
+    }
+
+    private int dp(float value) {
+        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
 
     private void showLoadingScreen()
