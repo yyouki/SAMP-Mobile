@@ -75,3 +75,17 @@ Commit source changes only to opencef-integration-landscape. Return:
 - Actions URLs and per-step results;
 - any handoff/blockers with exact native API or upstream dependency needed;
 - APK link only if the exact artifact exists, has been verified for the intended scope, and is safe to distribute.
+
+
+## Current checkpoint (2026-10-21)
+
+- Source branch head before this keyboard input slice: `ed03be99609b199b1e3270fc40d476af58390d4a`.
+- Connection settings now feed the native CNetGame host/port rather than the previous hard-coded endpoint.
+- The fullscreen preference and native auto-reconnect behavior are wired through the launcher and native connection state. A server-ban response no longer loops retries.
+- The attachment editor UI now uses a compact dark panel with property buttons for position X/Y/Z, rotation X/Y/Z, scale, plus/minus and save/close. It remains a **PC-inspired touch editor**, not a pixel-identical PC recreation, and it still needs runtime verification for native save/restore semantics and selection of the exact attached slot.
+- The current slice adds hardware-keyboard shortcuts while the editor is visible: arrows/A/D adjust the selected property, Tab/Shift+Tab changes property, X/Y/Z selects position, S selects scale, 1/2/3 selects rotation, Enter saves and Escape closes. Touch controls remain available. Keyboard shortcuts do not supply live numeric transform values; that requires a safe native read-back API.
+- A candidate external-runtime path was added in `ed03be99609b199b1e3270fc40d476af58390d4a`: the private test APK is intended to omit GTA game assets and attempt to load a user's installed GTA:SA Android 2.10 library. This path is not verified on physical Android hardware; Android linker/package visibility restrictions may prevent loading another app's native library, and the user must import their own licensed game data.
+- Latest source Actions run for that external-runtime change: https://github.com/yyouki/SAMP-Mobile/actions/runs/39504286387 (build and compile tests succeeded; no runtime/device test).
+- Private workflow profile-filter attempt `a2062266b9d2d88ca9f7502f590bda3ee7e0b0af` still failed the non-optional archive guard because GTA assets and `libGTASA.so` remained in the APK. Keep the guard unchanged. Replace Gradle excludes with an allowlisted staged asset/JNI source directory inside the private Actions workspace, then check the final APK archive and signer before uploading it.
+- No Claude connector/action is configured for this session. This file is the direct handoff entry point to provide to Claude Code; do not claim the task was delegated automatically.
+

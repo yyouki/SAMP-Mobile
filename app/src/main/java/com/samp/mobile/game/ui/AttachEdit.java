@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.view.MotionEvent;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -152,6 +153,130 @@ public class AttachEdit {
     public void hideWithoutReset()
     {
         attach_main_layot.setVisibility(View.GONE);
+    }
+
+    /**
+     * Routes PC-style editor shortcuts while the attachment editor is open.
+     * Return true for consumed key-down and key-up events so movement keys
+     * are not also passed into the game while the user is adjusting an object.
+     */
+    public boolean handleKeyEvent(KeyEvent event) {
+        if (!isShow || event == null) {
+            return false;
+        }
+
+        final int keyCode = event.getKeyCode();
+        final int action = event.getAction();
+        if (action != KeyEvent.ACTION_DOWN && action != KeyEvent.ACTION_UP) {
+            return false;
+        }
+
+        if (action == KeyEvent.ACTION_DOWN) {
+            switch (keyCode) {
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                case KeyEvent.KEYCODE_A:
+                    AttachClick(active_button, false);
+                    return true;
+
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                case KeyEvent.KEYCODE_D:
+                    AttachClick(active_button, true);
+                    return true;
+
+                case KeyEvent.KEYCODE_TAB:
+                    if (event.getRepeatCount() == 0) {
+                        cycleProperty(event.isShiftPressed() ? -1 : 1);
+                    }
+                    return true;
+
+                case KeyEvent.KEYCODE_ESCAPE:
+                case KeyEvent.KEYCODE_BACK:
+                    if (event.getRepeatCount() == 0) {
+                        attach_exit_butt.performClick();
+                    }
+                    return true;
+
+                case KeyEvent.KEYCODE_ENTER:
+                case KeyEvent.KEYCODE_NUMPAD_ENTER:
+                    if (event.getRepeatCount() == 0) {
+                        attach_save_butt.performClick();
+                    }
+                    return true;
+
+                case KeyEvent.KEYCODE_X:
+                    selectProperty(POSITION_X, attach_leftright);
+                    return true;
+                case KeyEvent.KEYCODE_Y:
+                    selectProperty(POSITION_Y, attach_topbott);
+                    return true;
+                case KeyEvent.KEYCODE_Z:
+                    selectProperty(POSITION_Z, attach_pushpull);
+                    return true;
+                case KeyEvent.KEYCODE_S:
+                    selectProperty(BUTTON_SCALE, attach_scale);
+                    return true;
+                case KeyEvent.KEYCODE_1:
+                    selectProperty(BUTTON_ROT_X, attach_rotX);
+                    return true;
+                case KeyEvent.KEYCODE_2:
+                    selectProperty(BUTTON_ROT_Y, attach_rotY);
+                    return true;
+                case KeyEvent.KEYCODE_3:
+                    selectProperty(BUTTON_ROT_Z, attach_rotZ);
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        // Consume matching key-up events without applying a second adjustment.
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_A:
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+            case KeyEvent.KEYCODE_D:
+            case KeyEvent.KEYCODE_TAB:
+            case KeyEvent.KEYCODE_ESCAPE:
+            case KeyEvent.KEYCODE_BACK:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_NUMPAD_ENTER:
+            case KeyEvent.KEYCODE_X:
+            case KeyEvent.KEYCODE_Y:
+            case KeyEvent.KEYCODE_Z:
+            case KeyEvent.KEYCODE_S:
+            case KeyEvent.KEYCODE_1:
+            case KeyEvent.KEYCODE_2:
+            case KeyEvent.KEYCODE_3:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void cycleProperty(int direction) {
+        final int[] propertyIds = {
+                POSITION_X, POSITION_Y, POSITION_Z,
+                BUTTON_ROT_X, BUTTON_ROT_Y, BUTTON_ROT_Z, BUTTON_SCALE
+        };
+        final View[] propertyViews = {
+                attach_leftright, attach_topbott, attach_pushpull,
+                attach_rotX, attach_rotY, attach_rotZ, attach_scale
+        };
+
+        int currentIndex = 0;
+        for (int i = 0; i < propertyIds.length; i++) {
+            if (propertyIds[i] == active_button) {
+                currentIndex = i;
+                break;
+            }
+        }
+        int nextIndex = (currentIndex + direction + propertyIds.length) % propertyIds.length;
+        selectProperty(propertyIds[nextIndex], propertyViews[nextIndex]);
+    }
+
+    private void selectProperty(int propertyId, View propertyView) {
+        active_button = propertyId;
+        SelectetItem(propertyView);
     }
 
     public void SelectetItem(View view){

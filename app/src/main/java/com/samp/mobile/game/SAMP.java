@@ -399,6 +399,9 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (mAttachEdit != null && mAttachEdit.handleKeyEvent(event)) {
+            return true;
+        }
         if (keyCode == KeyEvent.KEYCODE_F8 && event.getRepeatCount() == 0) {
             captureScreenshot();
             return true;
@@ -407,6 +410,14 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
             onEventBackPressed();
         }
         return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (mAttachEdit != null && mAttachEdit.handleKeyEvent(event)) {
+            return true;
+        }
+        return super.onKeyUp(keyCode, event);
     }
 
     private void applyFullscreenMode(boolean enabled) {
