@@ -36,6 +36,7 @@ CSettings::CSettings()
     m_Settings.szVersion[length] = '\0';
 	m_Settings.iPort = reader.GetInteger("client", "port", 7777);
     m_Settings.bAutoAim = reader.GetBoolean("client", "autoaim", false);
+    m_Settings.bAutoReconnect = reader.GetBoolean("client", "autoreconnect", true);
 
 	// debug
 	m_Settings.bDebug = reader.GetBoolean("debug", "debug", false);
