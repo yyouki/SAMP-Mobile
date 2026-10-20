@@ -3,6 +3,7 @@
 #include "netgame.h"
 #include "../gui/gui.h"
 #include "../audiostream.h"
+#include "../settings.h"
 
 // voice
 #include "../voice_new/MicroIcon.h"
@@ -15,6 +16,7 @@
 
 extern UI* pUI;
 extern CGame* pGame;
+extern CSettings* pSettings;
 extern CAudioStream* pAudioStream;
 //extern CVoice* pVoice;
 
