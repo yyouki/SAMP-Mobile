@@ -311,6 +311,7 @@ public class SettingsFragment extends Fragment {
 
         SwitchCompat autoAim = addToggle(content, "Auto aim", readIniBoolean("client", "autoaim", false));
         SwitchCompat voiceToggle = addToggle(content, "Toggle-to-talk (tap to start/stop)", readIniBoolean("gui", "VoiceChatToggle", false));
+        SwitchCompat chatTimestamps = addToggle(content, "Show chat timestamps", readIniBoolean("gui", "ChatTimestamps", false));
 
         SeekSetting receivedVolume = addSeekSetting(content, "Incoming voice volume", 0, 100,
                 readIniInt("gui", "VoiceSoundVolume", 100), "%");
@@ -343,6 +344,7 @@ public class SettingsFragment extends Fragment {
                     try {
                         mWini.put("client", "autoaim", autoAim.isChecked());
                         mWini.put("gui", "VoiceChatToggle", voiceToggle.isChecked());
+                        mWini.put("gui", "ChatTimestamps", chatTimestamps.isChecked());
                         mWini.put("gui", "VoiceSoundVolume", receivedVolume.getValue());
                         mWini.put("gui", "VoiceMicroVolume", microphoneVolume.getValue());
                         mWini.put("gui", "FontSize", fontSize.getValue());

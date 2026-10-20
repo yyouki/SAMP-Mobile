@@ -3,6 +3,7 @@
 #include "../../game/game.h"
 #include "../../net/netgame.h"
 #include <algorithm>
+#include <ctime>
 #include "../settings.h"
 #include "java/jniutil.h"
 
@@ -11,6 +12,25 @@ extern CGame* pGame;
 extern CNetGame* pNetGame;
 extern CSettings* pSettings;
 extern CJavaWrapper *pJavaWrapper;
+
+namespace {
+std::string ChatTimestampPrefix()
+{
+	if (pSettings == nullptr || !pSettings->Get().bChatTimestamps)
+		return std::string();
+
+	const std::time_t now = std::time(nullptr);
+	std::tm localTime{};
+	if (localtime_r(&now, &localTime) == nullptr)
+		return std::string();
+
+	char buffer[16]{};
+	if (std::strftime(buffer, sizeof(buffer), "[%H:%M:%S]", &localTime) == 0)
+		return std::string();
+
+	return std::string(buffer) + " ";
+}
+}
 
 Chat::Chat()
 	: ListBox()
@@ -59,7 +79,7 @@ void Chat::addMessage(const std::string& message, const ImColor& color)
 		this->removeItem(0);
 	}
 
-	MessageItem* item = new MessageItem(message, color);
+	MessageItem* item = new MessageItem(ChatTimestampPrefix() + message, color);
 	this->addItem(item);
 	/*if(!active())*/ this->setScrollY(1.0f);
 }
@@ -71,7 +91,7 @@ void Chat::addPlayerMessage(const std::string& message, const std::string& nick,
 		this->removeItem(0);
 	}
 
-	PlayerMessageItem* item = new PlayerMessageItem(message, nick, nick_color);
+	PlayerMessageItem* item = new PlayerMessageItem(message, ChatTimestampPrefix() + nick, nick_color);
 	this->addItem(item);
 	/*if(!active())*/ this->setScrollY(1.0f);
 }

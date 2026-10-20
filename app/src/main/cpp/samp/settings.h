@@ -25,6 +25,7 @@ struct stSettings
 	float fChatSizeX;
 	float fChatSizeY;
 	int iChatMaxMessages;
+	bool bChatTimestamps;
 	float fSpawnScreenPosX;
 	float fSpawnScreenPosY;
 	float fSpawnScreenSizeX;
