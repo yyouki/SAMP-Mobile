@@ -401,23 +401,32 @@ public class SettingsFragment extends Fragment {
         return new SeekSetting(seekBar, min);
     }
 
+    private String readIniString(String section, String key, String defaultValue) {
+        if (mWini == null) {
+            return defaultValue;
+        }
+        String value = mWini.get(section, key);
+        return value == null || value.trim().isEmpty() ? defaultValue : value.trim();
+    }
+
     private boolean readIniBoolean(String section, String key, boolean defaultValue) {
-        if (mWini == null) return defaultValue;
-        return Boolean.parseBoolean(mWini.get(section, key, String.valueOf(defaultValue)));
+        String value = readIniString(section, key, String.valueOf(defaultValue));
+        return Boolean.parseBoolean(value) || "1".equals(value);
     }
 
     private int readIniInt(String section, String key, int defaultValue) {
         try {
-            return Integer.parseInt(mWini.get(section, key, String.valueOf(defaultValue)));
-        } catch (Exception ignored) {
+            // Existing client settings include integral values serialized as decimals, e.g. 325.0.
+            return (int) Float.parseFloat(readIniString(section, key, String.valueOf(defaultValue)));
+        } catch (NumberFormatException ignored) {
             return defaultValue;
         }
     }
 
     private float readIniFloat(String section, String key, float defaultValue) {
         try {
-            return Float.parseFloat(mWini.get(section, key, String.valueOf(defaultValue)));
-        } catch (Exception ignored) {
+            return Float.parseFloat(readIniString(section, key, String.valueOf(defaultValue)));
+        } catch (NumberFormatException ignored) {
             return defaultValue;
         }
     }
