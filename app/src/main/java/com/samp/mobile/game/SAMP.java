@@ -1,10 +1,31 @@
 package com.samp.mobile.game;
 
+import android.content.ContentValues;
+import android.content.ContentResolver;
+import android.graphics.Bitmap;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.PixelCopy;
+import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.google.firebase.crashlytics.FirebaseCrashlytics;
 import com.joom.paranoid.Obfuscate;
@@ -30,6 +51,12 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
     private AttachEdit mAttachEdit;
     private LoadingScreen mLoadingScreen;
     private volatile ActivityBrowserOverlay openCefOverlay;
+    private final ExecutorService screenshotExecutor = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "samp-screenshot-writer");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private boolean screenshotInProgress = false;
 
     public native void sendDialogResponse(int i, int i2, int i3, byte[] str);
 
@@ -238,6 +265,128 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
 
     public native void onEventBackPressed();
 
+    /**
+     * F8 captures the current game window and saves it without requesting broad
+     * storage permission. Android 10+ writes into the Pictures media collection;
+     * older supported releases use the app-specific Pictures directory.
+     */
+    private void captureScreenshot() {
+        if (screenshotInProgress) {
+            Toast.makeText(this, "Screenshot is already being saved.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        View decorView = getWindow().getDecorView();
+        int width = decorView.getWidth();
+        int height = decorView.getHeight();
+        if (width <= 0 || height <= 0) {
+            Toast.makeText(this, "Screenshot is not ready yet.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        screenshotInProgress = true;
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        PixelCopy.request(getWindow(), bitmap, copyResult -> {
+            if (copyResult != PixelCopy.SUCCESS) {
+                screenshotInProgress = false;
+                bitmap.recycle();
+                Toast.makeText(this, "Screenshot failed (PixelCopy " + copyResult + ").",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            if (isFinishing() || isDestroyed()) {
+                screenshotInProgress = false;
+                bitmap.recycle();
+                return;
+            }
+
+            screenshotExecutor.execute(() -> {
+                String message;
+                try {
+                    message = saveScreenshot(bitmap);
+                } catch (IOException | RuntimeException exception) {
+                    Log.e(TAG, "Could not save screenshot", exception);
+                    message = "Could not save screenshot.";
+                } finally {
+                    bitmap.recycle();
+                }
+
+                final String resultMessage = message;
+                runOnUiThread(() -> {
+                    screenshotInProgress = false;
+                    if (!isFinishing() && !isDestroyed()) {
+                        Toast.makeText(this, resultMessage, Toast.LENGTH_LONG).show();
+                    }
+                });
+            });
+        }, new Handler(Looper.getMainLooper()));
+    }
+
+    private String saveScreenshot(Bitmap bitmap) throws IOException {
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US)
+                .format(new Date());
+        String filename = "SAMP-Mobile_" + timestamp + ".png";
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContentResolver resolver = getContentResolver();
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Images.Media.DISPLAY_NAME, filename);
+            values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+            values.put(MediaStore.Images.Media.RELATIVE_PATH,
+                    Environment.DIRECTORY_PICTURES + "/SAMP-Mobile");
+            values.put(MediaStore.Images.Media.IS_PENDING, 1);
+
+            Uri imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            if (imageUri == null) {
+                throw new IOException("MediaStore did not create a screenshot entry");
+            }
+
+            try {
+                OutputStream output = resolver.openOutputStream(imageUri);
+                if (output == null) {
+                    throw new IOException("Unable to open screenshot output stream");
+                }
+                try (OutputStream stream = output) {
+                    if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) {
+                        throw new IOException("PNG encoder could not write screenshot");
+                    }
+                }
+
+                ContentValues published = new ContentValues();
+                published.put(MediaStore.Images.Media.IS_PENDING, 0);
+                resolver.update(imageUri, published, null, null);
+                return "Screenshot saved to Pictures/SAMP-Mobile.";
+            } catch (IOException | RuntimeException exception) {
+                resolver.delete(imageUri, null, null);
+                throw exception;
+            }
+        }
+
+        File pictures = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        if (pictures == null) {
+            throw new IOException("App-specific Pictures directory is unavailable");
+        }
+        File directory = new File(pictures, "SAMP-Mobile");
+        if (!directory.isDirectory() && !directory.mkdirs()) {
+            throw new IOException("Could not create screenshot directory");
+        }
+        File target = new File(directory, filename);
+        try (FileOutputStream stream = new FileOutputStream(target)) {
+            if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) {
+                throw new IOException("PNG encoder could not write screenshot");
+            }
+        } catch (IOException exception) {
+            // Remove incomplete screenshots, but do not mask the original error.
+            if (target.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                target.delete();
+            }
+            throw exception;
+        }
+        return "Screenshot saved in the app's Pictures/SAMP-Mobile folder.";
+    }
+
     @Override
     public void onBackPressed() {
         super.onBackPressed();
@@ -246,8 +395,11 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if(keyCode == KeyEvent.KEYCODE_BACK)
-        {
+        if (keyCode == KeyEvent.KEYCODE_F8 && event.getRepeatCount() == 0) {
+            captureScreenshot();
+            return true;
+        }
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
             onEventBackPressed();
         }
         return super.onKeyDown(keyCode, event);
@@ -273,6 +425,7 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
         if (overlay != null) {
             overlay.dispose();
         }
+        screenshotExecutor.shutdown();
         super.onDestroy();
     }
 
