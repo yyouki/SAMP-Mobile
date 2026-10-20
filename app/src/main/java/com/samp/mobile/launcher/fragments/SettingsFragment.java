@@ -314,6 +314,8 @@ public class SettingsFragment extends Fragment {
         SwitchCompat chatTimestamps = addToggle(content, "Show chat timestamps", readIniBoolean("gui", "ChatTimestamps", false));
         SwitchCompat fullscreen = addToggle(content, "Immersive fullscreen (hide system bars)",
                 new SharedPreferenceCore().getBoolean(requireContext(), "FULLSCREEN_MODE", true));
+        SwitchCompat autoReconnect = addToggle(content, "Automatically reconnect after connection loss",
+                readIniBoolean("client", "autoreconnect", true));
 
         SeekSetting receivedVolume = addSeekSetting(content, "Incoming voice volume", 0, 100,
                 readIniInt("gui", "VoiceSoundVolume", 100), "%");
@@ -349,6 +351,7 @@ public class SettingsFragment extends Fragment {
                         mWini.put("gui", "ChatTimestamps", chatTimestamps.isChecked());
                         mWini.put("gui", "Fullscreen", fullscreen.isChecked());
                         new SharedPreferenceCore().setBoolean(context, "FULLSCREEN_MODE", fullscreen.isChecked());
+                        mWini.put("client", "autoreconnect", autoReconnect.isChecked());
                         mWini.put("gui", "VoiceSoundVolume", receivedVolume.getValue());
                         mWini.put("gui", "VoiceMicroVolume", microphoneVolume.getValue());
                         mWini.put("gui", "FontSize", fontSize.getValue());
