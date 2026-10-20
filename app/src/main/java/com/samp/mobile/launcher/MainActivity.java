@@ -5,6 +5,8 @@ import android.content.Context;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Build;
+import android.view.WindowInsets;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -64,6 +66,28 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Android 15+ enforces edge-to-edge for this target SDK; keep launcher controls clear of system bars.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            View mainLayout = findViewById(R.id.main_layout);
+            if (mainLayout != null) {
+                final int initialPaddingLeft = mainLayout.getPaddingLeft();
+                final int initialPaddingTop = mainLayout.getPaddingTop();
+                final int initialPaddingRight = mainLayout.getPaddingRight();
+                final int initialPaddingBottom = mainLayout.getPaddingBottom();
+                mainLayout.setOnApplyWindowInsetsListener((view, windowInsets) -> {
+                    android.graphics.Insets safeInsets = windowInsets.getInsets(
+                            WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                    view.setPadding(
+                            initialPaddingLeft + safeInsets.left,
+                            initialPaddingTop + safeInsets.top,
+                            initialPaddingRight + safeInsets.right,
+                            initialPaddingBottom + safeInsets.bottom);
+                    // The root now accounts for these insets; do not apply them twice to descendants.
+                    return WindowInsets.CONSUMED;
+                });
+            }
+        }
 
         Config.currentContext = this;
 
