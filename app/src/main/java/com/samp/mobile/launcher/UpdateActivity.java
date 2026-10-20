@@ -127,8 +127,8 @@ public class UpdateActivity extends AppCompatActivity{
             else if (msg.what == 3) {
                 if (!isFinishing()) {
                     new AlertDialog.Builder(UpdateActivity.this)
-                            .setTitle("Full data download incomplete")
-                            .setMessage("Some required GTA data files could not be downloaded. Check your connection, then retry. The launcher will stay closed until the required data is available.")
+                            .setTitle("Local game-data import incomplete")
+                            .setMessage("Some required local GTA data files are missing or have incompatible sizes. Choose the extracted folder from a GTA: San Andreas Android 2.10 installation you own. The launcher will stay closed until the required data is available.")
                             .setCancelable(false)
                             .setPositiveButton("Retry", (dialog, which) -> {
                                 startActivity(new Intent(UpdateActivity.this, SplashActivity.class));

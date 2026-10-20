@@ -9,6 +9,8 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.opengl.GLSurfaceView;
+import android.net.Uri;
+import android.app.ProgressDialog;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -37,13 +39,18 @@ import com.samp.mobile.launcher.util.SharedPreferenceCore;
 import com.samp.mobile.launcher.util.Util;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 @Obfuscate
 public class SplashActivity extends AppCompatActivity {
 
+    private static final int REQUEST_GAME_DATA_FOLDER = 5208;
     private final String[] permissions = {"android.permission.READ_EXTERNAL_STORAGE", "android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.RECORD_AUDIO"};
+    private ArrayList<String> pendingRequiredPaths = new ArrayList<>();
+    private long[] pendingRequiredSizes = new long[0];
 
     public int mGpuType;
 
@@ -177,21 +184,10 @@ public class SplashActivity extends AppCompatActivity {
                 UpdateActivity.GameStatus valueOf2 = UpdateActivity.GameStatus.valueOf(msg.getData().getString("status", ""));
                 Log.i("x1y2z", "gameStatus = " + valueOf2);
 
-                if (valueOf2 == UpdateActivity.GameStatus.UpdateRequired) {
-                    // Always finish syncing the complete supported data manifest before
-                    // opening the launcher. MODIFIED_DATA must not silently bypass missing
-                    // required game files.
-                    Intent intent = new Intent(SplashActivity.this, UpdateActivity.class);
-                    intent.putExtra("mode", UpdateActivity.UpdateMode.GameDataUpdate.name());
-                    startActivity(intent);
-                    finish();
-                } else if (valueOf2 == UpdateActivity.GameStatus.GameUpdateRequired) {
-                    // The custom-signed fork never installs the upstream update.apk.
-                    // Treat legacy self-update status as a full game-data sync instead.
-                    Intent intent = new Intent(SplashActivity.this, UpdateActivity.class);
-                    intent.putExtra("mode", UpdateActivity.UpdateMode.GameDataUpdate.name());
-                    startActivity(intent);
-                    finish();
+                if (valueOf2 == UpdateActivity.GameStatus.UpdateRequired
+                        || valueOf2 == UpdateActivity.GameStatus.GameUpdateRequired) {
+                    // Game files are not bundled or downloaded; import compatible local files instead.
+                    requestLocalGameDataImport(msg.getData());
                 } else if (valueOf2 == UpdateActivity.GameStatus.Unknown) {
                     if (!isFinishing()) {
                         new AlertDialog.Builder(SplashActivity.this)
@@ -209,6 +205,119 @@ public class SplashActivity extends AppCompatActivity {
 
             }
         }
+    }
+
+
+    private void requestLocalGameDataImport(Bundle statusData) {
+        ArrayList<String> paths = statusData.getStringArrayList("requiredPaths");
+        long[] sizes = statusData.getLongArray("requiredSizes");
+        if (paths == null || paths.isEmpty() || sizes == null || sizes.length != paths.size()) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Game-data manifest unavailable")
+                    .setMessage("The required game-data file list could not be validated. Check your connection and retry. The launcher will not continue with incomplete data.")
+                    .setCancelable(false)
+                    .setPositiveButton("Retry", (dialog, which) -> checkUpdate())
+                    .setNegativeButton("Exit", (dialog, which) -> finishAndRemoveTask())
+                    .show();
+            return;
+        }
+        pendingRequiredPaths = new ArrayList<>(paths);
+        pendingRequiredSizes = sizes.clone();
+        new AlertDialog.Builder(this)
+                .setTitle("Import local GTA data")
+                .setMessage("This app does not bundle or download GTA game files. Choose the extracted game-data folder from a GTA: San Andreas Android 2.10 installation you own. Select the folder that directly contains folders such as Text, data, and models. The full manifest will be checked again before the launcher opens.")
+                .setCancelable(false)
+                .setPositiveButton("Choose folder", (dialog, which) -> openLocalGameDataFolderPicker())
+                .setNegativeButton("Exit", (dialog, which) -> finishAndRemoveTask())
+                .show();
+    }
+
+    private void openLocalGameDataFolderPicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try {
+            startActivityForResult(intent, REQUEST_GAME_DATA_FOLDER);
+        } catch (RuntimeException e) {
+            Log.e("LocalGameDataImport", "Could not open Android's folder picker", e);
+            new AlertDialog.Builder(this)
+                    .setTitle("Folder picker unavailable")
+                    .setMessage("Android could not open a folder picker. Required local game data is still missing, so the launcher will stay closed.")
+                    .setPositiveButton("Retry", (dialog, which) -> openLocalGameDataFolderPicker())
+                    .setNegativeButton("Exit", (dialog, which) -> finishAndRemoveTask())
+                    .show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_GAME_DATA_FOLDER) return;
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) {
+            new AlertDialog.Builder(this)
+                    .setTitle("No folder selected")
+                    .setMessage("A compatible local game-data folder is required before the launcher can continue.")
+                    .setPositiveButton("Choose folder", (dialog, which) -> openLocalGameDataFolderPicker())
+                    .setNegativeButton("Exit", (dialog, which) -> finishAndRemoveTask())
+                    .show();
+            return;
+        }
+        Uri sourceTree = data.getData();
+        try {
+            getContentResolver().takePersistableUriPermission(sourceTree, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (SecurityException e) {
+            Log.w("LocalGameDataImport", "Could not persist folder access; trying this import anyway", e);
+        }
+        importMissingLocalFiles(sourceTree);
+    }
+
+    private void importMissingLocalFiles(Uri sourceTree) {
+        final ArrayList<String> paths = new ArrayList<>(pendingRequiredPaths);
+        final long[] sizes = pendingRequiredSizes.clone();
+        ProgressDialog progress = new ProgressDialog(this);
+        progress.setTitle("Importing local game data");
+        progress.setMessage("Copying files from the selected folder. Keep the launcher open.");
+        progress.setIndeterminate(true);
+        progress.setCancelable(false);
+        progress.show();
+        Thread worker = new Thread(() -> {
+            int imported = 0;
+            IOException failure = null;
+            try {
+                imported = com.samp.mobile.launcher.util.LocalGameDataImporter.importMissingFiles(
+                        SplashActivity.this, sourceTree, paths, sizes);
+            } catch (IOException e) {
+                failure = e;
+            }
+            final int importedCount = imported;
+            final IOException importFailure = failure;
+            runOnUiThread(() -> {
+                if (progress.isShowing()) progress.dismiss();
+                if (importFailure != null) {
+                    Log.e("LocalGameDataImport", "Could not import local data", importFailure);
+                    new AlertDialog.Builder(SplashActivity.this)
+                            .setTitle("Import failed")
+                            .setMessage(importFailure.getMessage() + "\n\nChoose another folder or exit. Existing app files have not been removed.")
+                            .setPositiveButton("Choose another folder", (dialog, which) -> openLocalGameDataFolderPicker())
+                            .setNegativeButton("Exit", (dialog, which) -> finishAndRemoveTask())
+                            .show();
+                    return;
+                }
+                if (importedCount == 0) {
+                    new AlertDialog.Builder(SplashActivity.this)
+                            .setTitle("No compatible files found")
+                            .setMessage("No missing files matched that folder. Select the extracted folder that directly contains Text, data, and models from GTA: San Andreas Android 2.10.")
+                            .setPositiveButton("Choose another folder", (dialog, which) -> openLocalGameDataFolderPicker())
+                            .setNegativeButton("Exit", (dialog, which) -> finishAndRemoveTask())
+                            .show();
+                    return;
+                }
+                Toast.makeText(SplashActivity.this,
+                        "Imported " + importedCount + " file(s). Rechecking the full manifest...",
+                        Toast.LENGTH_LONG).show();
+                checkUpdate(); // Launch only after the full manifest matches local files.
+            });
+        }, "LocalGameDataImport");
+        worker.start();
     }
 
     public void checkUpdate() {
