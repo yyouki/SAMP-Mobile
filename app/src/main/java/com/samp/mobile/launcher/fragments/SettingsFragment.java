@@ -1,6 +1,11 @@
 package com.samp.mobile.launcher.fragments;
 
 import android.content.Intent;
+import android.graphics.Color;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -52,6 +57,7 @@ public class SettingsFragment extends Fragment {
     TextView mMessagesText;
     SeekBar mFPSSeekBar;
     TextView mFPSText;
+    Button mAdvancedSettingsButton;
 
     String[] titles = {"0.3.7", "0.3.7-R1", "0.3.7-R3","0.3.7-R4","0.3.7-R5"};
 
@@ -76,6 +82,7 @@ public class SettingsFragment extends Fragment {
         mMessagesText = view.findViewById(R.id.messages_count);
         mFPSSeekBar = view.findViewById(R.id.fps_seekbar);
         mFPSText = view.findViewById(R.id.fps_count);
+        mAdvancedSettingsButton = view.findViewById(R.id.advanced_settings_button);
 
         adapter = new ArrayAdapter<String>(getActivity(), androidx.appcompat.R.layout.support_simple_spinner_dropdown_item, titles);
         adapter.setDropDownViewResource(androidx.appcompat.R.layout.support_simple_spinner_dropdown_item);
@@ -165,19 +172,9 @@ public class SettingsFragment extends Fragment {
             }
         });
 
-        mVoiceSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                new SharedPreferenceCore().setBoolean(requireContext().getApplicationContext(), "AIM", b);
-                try {
-                    if(mWini != null) {
-                        mWini.put("gui", "autoaim", b);
-                        mWini.store();
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
+        mVoiceSwitch.setOnCheckedChangeListener((compoundButton, enabled) -> {
+            new SharedPreferenceCore().setBoolean(requireContext().getApplicationContext(), "VOICE_CHAT_ENABLED", enabled);
+            storeIniValue("gui", "VoiceChatEnable", enabled);
         });
 
         mFPSSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -295,7 +292,160 @@ public class SettingsFragment extends Fragment {
         });
 
 
+        mAdvancedSettingsButton.setOnClickListener(v -> showAdvancedSettingsDialog());
+
         return view;
+    }
+
+    private void showAdvancedSettingsDialog() {
+        if (mWini == null) {
+            Toast.makeText(requireContext(), "Client settings are not available yet.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        final android.content.Context context = requireContext();
+        LinearLayout content = new LinearLayout(context);
+        content.setOrientation(LinearLayout.VERTICAL);
+        int padding = dp(16);
+        content.setPadding(padding, dp(8), padding, dp(12));
+
+        SwitchCompat autoAim = addToggle(content, "Auto aim", readIniBoolean("client", "autoaim", false));
+        SwitchCompat voiceToggle = addToggle(content, "Toggle-to-talk (tap to start/stop)", readIniBoolean("gui", "VoiceChatToggle", false));
+
+        SeekSetting receivedVolume = addSeekSetting(content, "Incoming voice volume", 0, 100,
+                readIniInt("gui", "VoiceSoundVolume", 100), "%");
+        SeekSetting microphoneVolume = addSeekSetting(content, "Microphone volume", 0, 100,
+                readIniInt("gui", "VoiceMicroVolume", 75), "%");
+        SeekSetting fontSize = addSeekSetting(content, "Chat font size", 8, 72,
+                Math.round(readIniFloat("gui", "FontSize", 30.0f)), " px");
+        SeekSetting chatX = addSeekSetting(content, "Chat horizontal position", 0, 1920,
+                readIniInt("gui", "ChatPosX", 325), "");
+        SeekSetting chatY = addSeekSetting(content, "Chat vertical position", 0, 1080,
+                readIniInt("gui", "ChatPosY", 25), "");
+        SeekSetting chatWidth = addSeekSetting(content, "Chat width", 120, 1920,
+                readIniInt("gui", "ChatSizeX", 1150), "");
+        SeekSetting chatHeight = addSeekSetting(content, "Chat height", 36, 1080,
+                readIniInt("gui", "ChatSizeY", 220), "");
+
+        ScrollView scrollView = new ScrollView(context);
+        scrollView.setFillViewport(false);
+        scrollView.addView(content, new ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        int maxDialogHeight = Math.min(dp(500), (int) (getResources().getDisplayMetrics().heightPixels * 0.68f));
+        scrollView.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, maxDialogHeight));
+
+        new AlertDialog.Builder(context)
+                .setTitle("Advanced client settings")
+                .setView(scrollView)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Apply", (dialog, which) -> {
+                    try {
+                        mWini.put("client", "autoaim", autoAim.isChecked());
+                        mWini.put("gui", "VoiceChatToggle", voiceToggle.isChecked());
+                        mWini.put("gui", "VoiceSoundVolume", receivedVolume.getValue());
+                        mWini.put("gui", "VoiceMicroVolume", microphoneVolume.getValue());
+                        mWini.put("gui", "FontSize", fontSize.getValue());
+                        mWini.put("gui", "ChatPosX", chatX.getValue());
+                        mWini.put("gui", "ChatPosY", chatY.getValue());
+                        mWini.put("gui", "ChatSizeX", chatWidth.getValue());
+                        mWini.put("gui", "ChatSizeY", chatHeight.getValue());
+                        mWini.store();
+                        Toast.makeText(context, "Saved. Restart the game to apply native client settings.", Toast.LENGTH_LONG).show();
+                    } catch (IOException e) {
+                        Log.e("SettingsFragment", "Could not save advanced client settings", e);
+                        Toast.makeText(context, "Could not save client settings.", Toast.LENGTH_LONG).show();
+                    }
+                })
+                .show();
+    }
+
+    private SwitchCompat addToggle(LinearLayout parent, String label, boolean checked) {
+        SwitchCompat toggle = new SwitchCompat(requireContext());
+        toggle.setText(label);
+        toggle.setTextColor(Color.DKGRAY);
+        toggle.setTextSize(14);
+        toggle.setChecked(checked);
+        parent.addView(toggle, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return toggle;
+    }
+
+    private SeekSetting addSeekSetting(LinearLayout parent, String label, int min, int max, int initial, String suffix) {
+        TextView valueLabel = new TextView(requireContext());
+        valueLabel.setTextColor(Color.DKGRAY);
+        valueLabel.setTextSize(13);
+        SeekBar seekBar = new SeekBar(requireContext());
+        seekBar.setMax(max - min);
+        seekBar.setProgress(Math.max(min, Math.min(max, initial)) - min);
+        Runnable updateLabel = () -> valueLabel.setText(label + ": " + (seekBar.getProgress() + min) + suffix);
+        updateLabel.run();
+        seekBar.setContentDescription(label);
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
+                updateLabel.run();
+            }
+
+            @Override public void onStartTrackingTouch(SeekBar bar) {}
+            @Override public void onStopTrackingTouch(SeekBar bar) {}
+        });
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        labelParams.topMargin = dp(8);
+        parent.addView(valueLabel, labelParams);
+        parent.addView(seekBar, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
+        return new SeekSetting(seekBar, min);
+    }
+
+    private boolean readIniBoolean(String section, String key, boolean defaultValue) {
+        if (mWini == null) return defaultValue;
+        return Boolean.parseBoolean(mWini.get(section, key, String.valueOf(defaultValue)));
+    }
+
+    private int readIniInt(String section, String key, int defaultValue) {
+        try {
+            return Integer.parseInt(mWini.get(section, key, String.valueOf(defaultValue)));
+        } catch (Exception ignored) {
+            return defaultValue;
+        }
+    }
+
+    private float readIniFloat(String section, String key, float defaultValue) {
+        try {
+            return Float.parseFloat(mWini.get(section, key, String.valueOf(defaultValue)));
+        } catch (Exception ignored) {
+            return defaultValue;
+        }
+    }
+
+    private void storeIniValue(String section, String key, Object value) {
+        if (mWini == null) return;
+        try {
+            mWini.put(section, key, value);
+            mWini.store();
+        } catch (IOException e) {
+            Log.e("SettingsFragment", "Could not save " + section + "." + key, e);
+        }
+    }
+
+    private int dp(float value) {
+        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    private static final class SeekSetting {
+        private final SeekBar seekBar;
+        private final int minValue;
+
+        private SeekSetting(SeekBar seekBar, int minValue) {
+            this.seekBar = seekBar;
+            this.minValue = minValue;
+        }
+
+        private int getValue() {
+            return seekBar.getProgress() + minValue;
+        }
     }
 
     @Override
@@ -303,7 +453,7 @@ public class SettingsFragment extends Fragment {
         super.onResume();
 
         mKeyboardSwitch.setChecked(new SharedPreferenceCore().getBoolean(requireContext().getApplicationContext(), "ANDROID_KEYBOARD"));
-        mVoiceSwitch.setChecked(new SharedPreferenceCore().getBoolean(requireContext().getApplicationContext(), "AIM"));
+        mVoiceSwitch.setChecked(readIniBoolean("gui", "VoiceChatEnable", true));
         mFPSSwitch.setChecked(new SharedPreferenceCore().getBoolean(requireContext().getApplicationContext(), "FPS_DISPLAY"));
         mModifySwitch.setChecked(new SharedPreferenceCore().getBoolean(requireContext().getApplicationContext(), "MODIFIED_DATA"));
         mMonetSwitch.setChecked(new SharedPreferenceCore().getBoolean(requireContext().getApplicationContext(), "MLOADER"));
