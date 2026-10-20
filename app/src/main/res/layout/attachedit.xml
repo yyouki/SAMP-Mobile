@@ -312,6 +312,28 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
+            android:text="LIVE TRANSFORM VALUES"
+            android:textColor="#FF9FA6AF"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/attach_current_values"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="#FF25292F"
+            android:fontFamily="monospace"
+            android:includeFontPadding="false"
+            android:padding="7dp"
+            android:text="Loading object transform..."
+            android:textColor="#FFF2F3F5"
+            android:textSize="9sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
             android:text="ADJUST SELECTED PROPERTY"
             android:textColor="#FF9FA6AF"
             android:textSize="10sp"

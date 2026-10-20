@@ -10,6 +10,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import java.util.Locale;
+
 import androidx.constraintlayout.widget.ConstraintLayout;
 
 import com.google.android.material.button.MaterialButton;
@@ -18,9 +20,9 @@ import com.samp.mobile.R;
 import com.samp.mobile.launcher.util.Util;
 @Obfuscate
 public class AttachEdit {
-    private final int POSITION_Y = 0;
-    private final int POSITION_Z = 1;
-    private final int POSITION_X = 2;
+    private final int POSITION_X = 0;
+    private final int POSITION_Y = 1;
+    private final int POSITION_Z = 2;
     private final int BUTTON_SCALE = 3;
     private final int BUTTON_ROT_X = 4;
     private final int BUTTON_ROT_Y = 5;
@@ -42,10 +44,13 @@ public class AttachEdit {
     //private TextView attach_text_description;
     private Button attach_left_butt;
     private Button attach_right_button;
+    private TextView attach_values_text;
+    private boolean supportsScale = true;
 
     native void Exit();
     native void AttachClick(int buttonType, boolean buttonID);
     native void Save();
+    private native float[] ReadValues();
     
     public boolean isShow;
 
@@ -127,6 +132,7 @@ public class AttachEdit {
         });
 
         attach_main_layot = activity.findViewById(R.id.attach_main_layot);
+        attach_values_text = activity.findViewById(R.id.attach_current_values);
 
         isShow = false;
         SelectetItem(attach_leftright);
@@ -136,6 +142,9 @@ public class AttachEdit {
     public void show()
     {
         isShow = true;
+        active_button = POSITION_X;
+        SelectetItem(attach_leftright);
+        updateCurrentValues();
         Util.ShowLayout(attach_main_layot, true);
     }
 
@@ -213,7 +222,7 @@ public class AttachEdit {
                     selectProperty(POSITION_Z, attach_pushpull);
                     return true;
                 case KeyEvent.KEYCODE_S:
-                    selectProperty(BUTTON_SCALE, attach_scale);
+                    if (supportsScale) selectProperty(BUTTON_SCALE, attach_scale);
                     return true;
                 case KeyEvent.KEYCODE_1:
                     selectProperty(BUTTON_ROT_X, attach_rotX);
@@ -254,14 +263,24 @@ public class AttachEdit {
     }
 
     private void cycleProperty(int direction) {
-        final int[] propertyIds = {
+        final int[] attachmentIds = {
                 POSITION_X, POSITION_Y, POSITION_Z,
                 BUTTON_ROT_X, BUTTON_ROT_Y, BUTTON_ROT_Z, BUTTON_SCALE
         };
-        final View[] propertyViews = {
+        final View[] attachmentViews = {
                 attach_leftright, attach_topbott, attach_pushpull,
                 attach_rotX, attach_rotY, attach_rotZ, attach_scale
         };
+        final int[] objectIds = {
+                POSITION_X, POSITION_Y, POSITION_Z,
+                BUTTON_ROT_X, BUTTON_ROT_Y, BUTTON_ROT_Z
+        };
+        final View[] objectViews = {
+                attach_leftright, attach_topbott, attach_pushpull,
+                attach_rotX, attach_rotY, attach_rotZ
+        };
+        final int[] propertyIds = supportsScale ? attachmentIds : objectIds;
+        final View[] propertyViews = supportsScale ? attachmentViews : objectViews;
 
         int currentIndex = 0;
         for (int i = 0; i < propertyIds.length; i++) {
@@ -275,8 +294,51 @@ public class AttachEdit {
     }
 
     private void selectProperty(int propertyId, View propertyView) {
+        if (propertyId == BUTTON_SCALE && !supportsScale) {
+            return;
+        }
         active_button = propertyId;
         SelectetItem(propertyView);
+    }
+
+    private void updateCurrentValues() {
+        if (attach_values_text == null) {
+            return;
+        }
+        float[] values;
+        try {
+            values = ReadValues();
+        } catch (UnsatisfiedLinkError error) {
+            attach_values_text.setText("Native transform values are unavailable.");
+            return;
+        }
+        if (values == null || values.length < 10) {
+            attach_values_text.setText("No active object/attachment.");
+            return;
+        }
+
+        final boolean attachedToy = ((int) values[0]) == 1;
+        supportsScale = attachedToy;
+        attach_scale.setEnabled(supportsScale);
+        attach_scale.setAlpha(supportsScale ? 1.0f : 0.45f);
+        if (!supportsScale && active_button == BUTTON_SCALE) {
+            active_button = POSITION_X;
+            SelectetItem(attach_leftright);
+        }
+
+        String transformLabel = attachedToy ? "OFFSET" : "POSITION";
+        String valueLine = String.format(Locale.US,
+                "%s  X:% .3f  Y:% .3f  Z:% .3f   |   ROT  X:% .1f  Y:% .1f  Z:% .1f",
+                transformLabel, values[1], values[2], values[3],
+                values[4], values[5], values[6]);
+        if (attachedToy) {
+            valueLine += String.format(Locale.US,
+                    "   |   SCALE  X:%.3f Y:%.3f Z:%.3f",
+                    values[7], values[8], values[9]);
+        } else {
+            valueLine += "   |   SCALE: N/A";
+        }
+        attach_values_text.setText(valueLine);
     }
 
     public void SelectetItem(View view){
@@ -304,6 +366,7 @@ public class AttachEdit {
         ConstraintLayout tmp = (ConstraintLayout) view;
         tmp.getChildAt(0).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#E83A52")));
         //tmp.getChildAt(2).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#000000")));
+        updateCurrentValues();
     }
     //
     int fix_move = 0;
@@ -321,6 +384,7 @@ public class AttachEdit {
                     } else {
                         AttachClick(active_button, true);
                     }
+                    updateCurrentValues();
                     break;
                 }
                 case MotionEvent.ACTION_MOVE: {
@@ -333,6 +397,7 @@ public class AttachEdit {
                     }else{
                         AttachClick(active_button, true);
                     }
+                    updateCurrentValues();
                     break;
                 }
             }

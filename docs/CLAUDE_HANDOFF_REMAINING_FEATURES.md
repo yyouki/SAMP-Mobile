@@ -89,3 +89,9 @@ Commit source changes only to opencef-integration-landscape. Return:
 - Private workflow profile-filter attempt `a2062266b9d2d88ca9f7502f590bda3ee7e0b0af` still failed the non-optional archive guard because GTA assets and `libGTASA.so` remained in the APK. Keep the guard unchanged. Replace Gradle excludes with an allowlisted staged asset/JNI source directory inside the private Actions workspace, then check the final APK archive and signer before uploading it.
 - No Claude connector/action is configured for this session. This file is the direct handoff entry point to provide to Claude Code; do not claim the task was delegated automatically.
 
+
+
+### Native attachment editor follow-up
+- Native `app/src/main/cpp/samp/java/editobject.cpp` owns the actual edit callbacks; do not recreate editing in a separate UI.
+- This slice snapshots the original transform at edit start, exposes transform read-back for the on-screen values, changes position mapping to a consistent X/Y/Z axis order, disables Scale for regular world objects (SA-MP's current `CObject` wrapper/protocol does not implement world-object scaling), and restores the snapshot on Close/Cancel instead of dereferencing an already-invalid edited object id.
+- Test both a player-attached toy (position, rotation, scale, save, cancel) and a regular server object (position, rotation, save, cancel), then inspect server RPC behavior. A successful C++ compile alone does not validate server-side handling of cancel/final packets.

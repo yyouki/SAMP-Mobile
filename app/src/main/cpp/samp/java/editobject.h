@@ -29,6 +29,13 @@ public:
     static inline bool      bPlayerObj  = false; // hueta by samp
     static inline uint32_t  time = 0;
 
+    // Original transform is retained for a real PC-style Cancel/Close operation.
+    // [0..2] position/offset, [3..5] rotation, [6..8] scale for player attachments.
+    static inline bool      hasOriginalState = false;
+    static inline uint32_t  originalModelId = 0;
+    static inline uint32_t  originalBone = 0;
+    static inline float     originalTransform[9] = {};
+
 public:
     static void startEditPlayerAttach(int slot);
 
