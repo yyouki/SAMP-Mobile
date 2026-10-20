@@ -104,18 +104,20 @@ public class ServerAddFragment extends Dialog {
                         SAMPServerInfo targetServer = new SAMPServerInfo(
                                 0, 0, serverAddress, serverAddress, serverPort,
                                 0, 0, 0, 0, 0, "—");
-                        FavouriteServerInformationFragment.connectToServer(activity, targetServer);
+                        if (!FavouriteServerInformationFragment.connectToServer(activity, targetServer)) {
+                            return;
+                        }
                     }
+                    dismiss();
                 } else {
-                    Toast.makeText(activity, "Invalid ip and port. (Use IP:PORT or IP)", Toast.LENGTH_LONG).show();
+                    Toast.makeText(activity, "Invalid IP and port. Use IP:PORT or IP. Correct the value and retry.", Toast.LENGTH_LONG).show();
+                    return;
                 }
 
                /* if(((MainActivity)activity).interstitialAd.isReady())
                 {
                     ((MainActivity)activity).interstitialAd.showAd();
                 }*/
-
-                dismiss();
             }
         });
 

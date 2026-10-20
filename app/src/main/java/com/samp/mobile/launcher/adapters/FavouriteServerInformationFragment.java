@@ -204,11 +204,12 @@ public class FavouriteServerInformationFragment extends Dialog {
             }
         }
 
-        File requiredText = new File(externalRoot, "Text/american.dxt");
-        File alternateTexture = new File(externalRoot, "Textures/fonts/RussianFont.png");
-        if (!requiredText.isFile() && !alternateTexture.isFile()) {
+        // Alyn's Full Data manifest uses the GTA text table at this path.
+        // A font texture alone is not enough to consider the game data complete.
+        File requiredText = new File(externalRoot, "Text/american.gxt");
+        if (!requiredText.isFile() || requiredText.length() == 0L) {
             Toast.makeText(activity,
-                    "GTA/SA-MP data is missing or incomplete. Finish the Full Data sync, then connect again.",
+                    "Required GTA data is missing: Text/american.gxt. Finish the Alyn Full Data sync, then connect again.",
                     Toast.LENGTH_LONG).show();
             return false;
         }
