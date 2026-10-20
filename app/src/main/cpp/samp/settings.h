@@ -15,6 +15,7 @@ struct stSettings
 	bool bDebug;
 	bool bOnline;
 	bool bAutoAim;
+	bool bAutoReconnect;
 
 	// gui
 	char szFont[40];
