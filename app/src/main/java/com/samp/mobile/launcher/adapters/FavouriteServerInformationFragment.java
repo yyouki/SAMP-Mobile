@@ -214,6 +214,14 @@ public class FavouriteServerInformationFragment extends Dialog {
             return false;
         }
 
+        if (!GTASA.ensureGameRuntime(activity)) {
+            String reason = GTASA.getGameRuntimeError();
+            Toast.makeText(activity, reason == null || reason.trim().isEmpty()
+                    ? "Compatible GTA: San Andreas game runtime is unavailable."
+                    : reason, Toast.LENGTH_LONG).show();
+            return false;
+        }
+
         try {
             activity.startActivity(new Intent(activity, SAMP.class));
             activity.finish();

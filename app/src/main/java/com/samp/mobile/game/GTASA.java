@@ -1,11 +1,17 @@
 package com.samp.mobile.game;
 
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.PackageInfo;
+import android.content.pm.ApplicationInfo;
+import android.content.Context;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.widget.Toast;
+
+import java.io.File;
 
 import com.bytedance.shadowhook.ShadowHook;
 import com.joom.paranoid.Obfuscate;
@@ -19,25 +25,91 @@ public class GTASA extends WarMedia {
     static String vmVersion;
     private boolean once = false;
 
+    private static final String ORIGINAL_GAME_PACKAGE = "com.rockstargames.gtasa";
+    private static boolean gameLibrariesLoaded = false;
+    private static String gameRuntimeError =
+            "Install your own compatible GTA: San Andreas Android 2.10 copy and import its game data.";
+
     static {
         ShadowHook.init(new ShadowHook.ConfigBuilder()
                 .setMode(ShadowHook.Mode.UNIQUE)
                 .build());
 
-        vmVersion = null;
-        System.out.println("**** Loading SO's");
+        vmVersion = System.getProperty("java.vm.version");
         try {
-            vmVersion = System.getProperty("java.vm.version");
-            System.out.println("vmVersion " + vmVersion);
             System.loadLibrary("ImmEmulatorJ");
+        } catch (ExceptionInInitializerError | UnsatisfiedLinkError ignored) {
+            // Optional compatibility helper; the game runtime check below reports required files.
         }
-        catch (ExceptionInInitializerError | UnsatisfiedLinkError ignored) {
-        }
-        System.loadLibrary("GTASA");
-        System.loadLibrary("bass");
-        System.loadLibrary("samp");
     }
 
+    /**
+     * Loads the game runtime from this APK for developer builds, or from the
+     * user's separately installed original GTA:SA 2.10 app for the private
+     * test APK. The distributable test APK does not bundle libGTASA.so.
+     */
+    public static synchronized boolean ensureGameRuntime(Context context) {
+        if (gameLibrariesLoaded) {
+            return true;
+        }
+        if (context == null) {
+            gameRuntimeError = "Game runtime cannot be checked without an Android context.";
+            return false;
+        }
+
+        try {
+            try {
+                // Standard source builds may include the runtime for local development.
+                System.loadLibrary("GTASA");
+            } catch (UnsatisfiedLinkError notBundled) {
+                final PackageManager packageManager = context.getPackageManager();
+                final ApplicationInfo originalGame;
+                final PackageInfo originalPackage;
+                try {
+                    originalGame = packageManager.getApplicationInfo(ORIGINAL_GAME_PACKAGE, 0);
+                    originalPackage = packageManager.getPackageInfo(ORIGINAL_GAME_PACKAGE, 0);
+                } catch (PackageManager.NameNotFoundException missingGame) {
+                    gameRuntimeError = "Compatible GTA: San Andreas was not found. Install your own original Android 2.10 copy; this client does not include the game.";
+                    return false;
+                }
+
+                String versionName = originalPackage.versionName;
+                if (versionName == null || !versionName.startsWith("2.10")) {
+                    gameRuntimeError = "Detected GTA: San Andreas version "
+                            + (versionName == null ? "unknown" : versionName)
+                            + ". This SA-MP client requires the original Android 2.10 runtime.";
+                    return false;
+                }
+
+                if (originalGame.nativeLibraryDir == null || originalGame.nativeLibraryDir.trim().isEmpty()) {
+                    gameRuntimeError = "The installed game does not expose a native library directory.";
+                    return false;
+                }
+
+                File originalLibrary = new File(originalGame.nativeLibraryDir, "libGTASA.so");
+                if (!originalLibrary.isFile()) {
+                    gameRuntimeError = "The installed game runtime libGTASA.so is unavailable to this app. No copy is bundled; install a compatible original Android 2.10 build and try again.";
+                    return false;
+                }
+                System.load(originalLibrary.getAbsolutePath());
+            }
+
+            System.loadLibrary("bass");
+            System.loadLibrary("samp");
+            gameLibrariesLoaded = true;
+            gameRuntimeError = "";
+            return true;
+        } catch (UnsatisfiedLinkError | SecurityException | IllegalArgumentException error) {
+            gameRuntimeError = "Could not load the compatible GTA: San Andreas runtime: "
+                    + (error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage());
+            Log.e("GTASA", gameRuntimeError, error);
+            return false;
+        }
+    }
+
+    public static synchronized String getGameRuntimeError() {
+        return gameRuntimeError;
+    }
     public static void staticEnterSocialClub()
     {
         //  gtasaSelf.EnterSocialClub();
