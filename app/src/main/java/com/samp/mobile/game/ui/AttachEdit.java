@@ -25,7 +25,7 @@ public class AttachEdit {
     private final int BUTTON_ROT_Y = 5;
     private final int BUTTON_ROT_Z = 6;
 
-    private int active_button = -1;
+    private int active_button = POSITION_X;
 
     private Activity activity;
     private ConstraintLayout attach_main_layot;
@@ -128,6 +128,7 @@ public class AttachEdit {
         attach_main_layot = activity.findViewById(R.id.attach_main_layot);
 
         isShow = false;
+        SelectetItem(attach_leftright);
         Util.HideLayout(attach_main_layot, true);
     }
 
@@ -176,7 +177,7 @@ public class AttachEdit {
         //attach_rotZ.getChildAt(2).setBackgroundTintList(null);
 
         ConstraintLayout tmp = (ConstraintLayout) view;
-        tmp.getChildAt(0).setBackgroundTintList(ColorStateList.valueOf(activity.getResources().getColor(R.color.colorAccent)));
+        tmp.getChildAt(0).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#E83A52")));
         //tmp.getChildAt(2).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#000000")));
     }
     //

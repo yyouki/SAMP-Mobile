@@ -567,14 +567,21 @@ void CNetGame::Packet_NoFreeIncomingConnections(Packet *pkt)
 // 0.3.7
 void CNetGame::Packet_DisconnectionNotification(Packet *pkt)
 {
-	if (pUI) pUI->chat()->addDebugMessage("Server closed the connection.");
+	const bool autoReconnect = !pSettings || pSettings->Get().bAutoReconnect;
+	if (pUI) {
+		pUI->chat()->addDebugMessage(autoReconnect
+				? "Server closed the connection. Reconnecting.."
+				: "Server closed the connection. Auto reconnect is disabled.");
+	}
 	if (pAudioStream) {
 		pAudioStream->Stop(true);
 	}
 	m_pRakClient->Disconnect(2000);
+	Network::OnRaknetDisconnect();
 
 	SpeakerList::Hide();
 	MicroIcon::Hide();
+	SetGameState(autoReconnect ? GAMESTATE_WAIT_CONNECT : GAMESTATE_DISCONNECTED);
 }
 // 0.3.7
 void CNetGame::Packet_ConnectionSucceeded(Packet *pkt)
@@ -642,6 +649,7 @@ void CNetGame::Packet_InvalidPassword(Packet *pkt)
 {
 	if (pUI) pUI->chat()->addDebugMessage("Wrong server password.");
 	m_pRakClient->Disconnect(0);
+	SetGameState(GAMESTATE_DISCONNECTED);
 }
 // 0.3.7
 void CNetGame::Packet_ConnectionLost(Packet *pkt)

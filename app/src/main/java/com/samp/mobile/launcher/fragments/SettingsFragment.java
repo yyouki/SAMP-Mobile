@@ -222,6 +222,8 @@ public class SettingsFragment extends Fragment {
                         break;
                     }
                 }
+                mMessagesText.setText(String.valueOf(realProgress));
+                if (!fromUser) return;
                 new SharedPreferenceCore().setInt(requireContext().getApplicationContext(), "MESSAGE_COUNT", realProgress);
                 File file = new File(getActivity().getExternalFilesDir(null) + "/SAMP/settings.ini");
                 if(file.exists()) {
@@ -234,7 +236,6 @@ public class SettingsFragment extends Fragment {
                         e.printStackTrace();
                     }
                 }
-                mMessagesText.setText(String.valueOf(realProgress));
             }
 
             public void onStartTrackingTouch(SeekBar seekBar) {
@@ -268,6 +269,8 @@ public class SettingsFragment extends Fragment {
                         break;
                     }
                 }
+                mFPSText.setText(String.valueOf(realProgress));
+                if (!fromUser) return;
                 new SharedPreferenceCore().setInt(requireContext().getApplicationContext(), "FPS_LIMIT", realProgress);
                 File file = new File(getActivity().getExternalFilesDir(null) + "/SAMP/settings.ini");
                 if(file.exists()) {
@@ -280,7 +283,6 @@ public class SettingsFragment extends Fragment {
                         e.printStackTrace();
                     }
                 }
-                mFPSText.setText(String.valueOf(realProgress));
             }
 
             public void onStartTrackingTouch(SeekBar seekBar) {
@@ -470,16 +472,18 @@ public class SettingsFragment extends Fragment {
     public void onResume() {
         super.onResume();
 
-        mKeyboardSwitch.setChecked(new SharedPreferenceCore().getBoolean(requireContext().getApplicationContext(), "ANDROID_KEYBOARD"));
+        mKeyboardSwitch.setChecked(readIniBoolean("gui", "androidkeyboard",
+                new SharedPreferenceCore().getBoolean(requireContext().getApplicationContext(), "ANDROID_KEYBOARD", false)));
         mVoiceSwitch.setChecked(readIniBoolean("gui", "VoiceChatEnable", true));
-        mFPSSwitch.setChecked(new SharedPreferenceCore().getBoolean(requireContext().getApplicationContext(), "FPS_DISPLAY"));
+        mFPSSwitch.setChecked(readIniBoolean("gui", "fps",
+                new SharedPreferenceCore().getBoolean(requireContext().getApplicationContext(), "FPS_DISPLAY", false)));
         mModifySwitch.setChecked(new SharedPreferenceCore().getBoolean(requireContext().getApplicationContext(), "MODIFIED_DATA"));
         mMonetSwitch.setChecked(new SharedPreferenceCore().getBoolean(requireContext().getApplicationContext(), "MLOADER"));
         autoCompleteTextView.setSelection(new SharedPreferenceCore().getInt(requireContext().getApplicationContext(), "VERSION"));
 
         // Defaults must match the seek-bar choices on a fresh install.
         SharedPreferenceCore preferences = new SharedPreferenceCore();
-        int fps = preferences.getInt(requireContext(), "FPS_LIMIT", 60);
+        int fps = readIniInt("gui", "FPSLimit", preferences.getInt(requireContext(), "FPS_LIMIT", 60));
         switch (fps)
         {
             case 30: mFPSSeekBar.setProgress(0); break;
@@ -494,7 +498,7 @@ public class SettingsFragment extends Fragment {
         }
         mFPSText.setText(String.valueOf(fps));
 
-        int message = preferences.getInt(requireContext(), "MESSAGE_COUNT", 9);
+        int message = readIniInt("gui", "ChatMaxMessages", preferences.getInt(requireContext(), "MESSAGE_COUNT", 9));
         switch (message)
         {
             case 6: mMessagesSeekBar.setProgress(0); break;
