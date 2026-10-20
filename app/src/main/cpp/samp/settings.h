@@ -38,6 +38,9 @@ struct stSettings
 	float fPassengerTextureX;
 	float fPassengerTextureY;
 	bool bVoiceChatEnable;
+	bool bVoiceChatToggle;
+	int iVoiceSoundVolume;
+	int iVoiceMicroVolume;
 	int iVoiceChatKey;
 	float fVoiceChatSize;
 	float fVoiceChatPosX;

@@ -30,8 +30,9 @@ public:
 	{
 		if(!pSettings->Get().bVoiceChatEnable) return;
 
-		if (countdown > 0 && recording() == 1) countdown--;
-		if (countdown == 0 && recording() == 1) setRecording(0);
+		const bool toggleMode = pSettings != nullptr && pSettings->Get().bVoiceChatToggle;
+		if (!toggleMode && countdown > 0 && recording()) countdown--;
+		if (!toggleMode && countdown == 0 && recording()) setRecording(0);
 		renderer->drawImage(absolutePosition(), absolutePosition() + size(),
 			recording() ? m_texture_micro_on->raster : m_texture_micro_off->raster);
 
@@ -44,13 +45,19 @@ public:
 
 	void touchPopEvent() override
 	{
+		if (pSettings != nullptr && pSettings->Get().bVoiceChatToggle) return;
 		countdown = 500;
 		setRecording(0);
 	}
 
 	void touchPushEvent() override
 	{
-			//setRecording(recording() ^ 1);
+		if (pSettings != nullptr && pSettings->Get().bVoiceChatToggle)
+		{
+			setRecording(!recording());
+			if (!recording()) countdown = 1000;
+			return;
+		}
 		setRecording(1);
 		countdown = 500;
 	}

@@ -388,7 +388,7 @@ void Record::SetMicroVolume(const int microVolume) noexcept
     if(!Record::initStatus)
         return;
 
-    int iMicroVolume;
+    int iMicroVolume = microVolume;
     if(microVolume < 0) iMicroVolume = 0;
     else if(microVolume > 100) iMicroVolume = 100;
 

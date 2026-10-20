@@ -81,6 +81,9 @@ CSettings::CSettings()
 	m_Settings.fVoiceChatSize = reader.GetReal("gui", "VoiceChatSize", 30.0f);
 	m_Settings.fVoiceChatPosX = reader.GetReal("gui", "VoiceChatPosX", 1520.0f);
 	m_Settings.fVoiceChatPosY = reader.GetReal("gui", "VoiceChatPosY", 480.0f);
+	m_Settings.bVoiceChatToggle = reader.GetBoolean("gui", "VoiceChatToggle", false);
+	m_Settings.iVoiceSoundVolume = reader.GetInteger("gui", "VoiceSoundVolume", 100);
+	m_Settings.iVoiceMicroVolume = reader.GetInteger("gui", "VoiceMicroVolume", 75);
 
 	m_Settings.iAndroidKeyboard = reader.GetBoolean("gui", "androidkeyboard", false);
 	m_Settings.iFirstPerson = reader.GetBoolean("gui", "firstperson", true);

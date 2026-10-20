@@ -3,6 +3,7 @@
 #include "../vendor/imgui/imgui_internal.h"
 
 #include <string>
+#include <algorithm>
 #include "uisettings.h"
 #include "../main.h"
 #include "../settings.h"
@@ -81,11 +82,12 @@ void UISettings::Initialize(const ImVec2& display_size)
 	
 	m_scaleFactor = display_size / m_baseSize;
 
-	/* chat line count */
-	m_chatDispMesssages = pSettings->Get().iChatMaxMessages;
+	const stSettings& settings = pSettings->Get();
 
-	/* font */
-	m_fontSize *= m_scaleFactor.y;
+	/* chat line count and font */
+	m_chatDispMesssages = std::clamp(settings.iChatMaxMessages, 1, 30);
+	m_chatMaxMessages = m_chatDispMesssages;
+	m_fontSize = std::clamp(settings.fFontSize, 8.0f, 72.0f) * m_scaleFactor.y;
 
 	/* keyboard */
 	m_keyboardSize = m_keyboardSize * m_scaleFactor;
@@ -98,11 +100,14 @@ void UISettings::Initialize(const ImVec2& display_size)
 	m_splashScreenPBarPos = m_splashScreenPBarPos * m_scaleFactor;
 	m_splashScreenPBarSize = m_splashScreenPBarSize * m_scaleFactor;
 
-	/* chat */
-	m_chatPos = m_chatPos * m_scaleFactor;
-	m_chatSize.y = m_chatItemSize.y * m_chatDispMesssages;
-	m_chatSize = m_chatSize * m_scaleFactor;
-	m_chatItemSize = m_chatItemSize * m_scaleFactor;
+	/* chat: settings.ini coordinates use a 1920x1080 reference canvas. */
+	const float chatX = std::clamp(settings.fChatPosX, 0.0f, 1920.0f) * (m_baseSize.x / 1920.0f);
+	const float chatY = std::clamp(settings.fChatPosY, 0.0f, 1080.0f) * (m_baseSize.y / 1080.0f);
+	const float chatWidth = std::clamp(settings.fChatSizeX, 120.0f, 1920.0f) * (m_baseSize.x / 1920.0f);
+	const float chatHeight = std::clamp(settings.fChatSizeY, 36.0f, 1080.0f) * (m_baseSize.y / 1080.0f);
+	m_chatPos = ImVec2(chatX * m_scaleFactor.x, chatY * m_scaleFactor.y);
+	m_chatSize = ImVec2(chatWidth * m_scaleFactor.x, chatHeight * m_scaleFactor.y);
+	m_chatItemSize = ImVec2(m_chatSize.x, m_chatSize.y / static_cast<float>(m_chatDispMesssages));
 
 	/* spawn */
 	m_spawnPos = m_spawnPos * m_scaleFactor;

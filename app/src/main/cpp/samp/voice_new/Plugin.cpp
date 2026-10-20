@@ -1,4 +1,5 @@
 #include "../main.h"
+#include "../settings.h"
 #include "../gui/gui.h"
 
 #include "Plugin.h"
@@ -23,6 +24,7 @@
 extern CAudioStream* pAudioStream;
 
 extern UI* pUI;
+extern CSettings* pSettings;
 
 bool Plugin::OnPluginLoad() noexcept
 {
@@ -46,6 +48,14 @@ bool Plugin::OnSampLoad() noexcept
         LogVoice("[sv:err:plugin] : failed to init samp");
         Render::Free();
         return false;
+    }
+
+    if (pSettings != nullptr)
+    {
+        const stSettings& settings = pSettings->Get();
+        PluginConfig::SetSoundVolume(std::clamp(settings.iVoiceSoundVolume, 0, 100));
+        PluginConfig::SetMicroVolume(std::clamp(settings.iVoiceMicroVolume, 0, 100));
+        PluginConfig::SetMicroEnable(settings.bVoiceChatEnable);
     }
 
     Samp::AddLoadCallback(Plugin::OnInitGame);
@@ -117,7 +127,7 @@ void Plugin::MainLoop()
     Playback::Tick();
     Record::Tick();
 
-    int defaultKey = 0x42;
+    const int defaultKey = (pSettings != nullptr) ? pSettings->Get().iVoiceChatKey : 0x42;
 
     
     //
