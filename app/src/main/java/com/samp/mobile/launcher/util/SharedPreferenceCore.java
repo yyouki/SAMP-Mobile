@@ -73,6 +73,11 @@ public class SharedPreferenceCore {
         return false;
     }
 
+    public boolean getBoolean(Context context, String key, boolean defaultValue) {
+        main(context);
+        return mSharedPreference.getBoolean(key, defaultValue);
+    }
+
     public long getLong(Context context, String str) {
         main(context);
         if (mSharedPreference.contains(str)) {
