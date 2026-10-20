@@ -11,6 +11,7 @@ typedef unsigned short PLAYERID;
 typedef unsigned short VEHICLEID;
 typedef unsigned short OBJECTID;
 
+#define GAMESTATE_DISCONNECTED	0
 #define GAMESTATE_WAIT_CONNECT	1
 #define GAMESTATE_CONNECTING	2
 #define GAMESTATE_CONNECTED		5
